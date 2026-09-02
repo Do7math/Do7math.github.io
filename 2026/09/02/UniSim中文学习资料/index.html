@@ -1,0 +1,1512 @@
+<!DOCTYPE html><html lang="zh=CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器 | Du Wei</title><meta name="author" content="Du Wei"><meta name="copyright" content="Du Wei"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="0. 资料定位 这份资料面向已经了解分子动力学、深度学习分子建模或 generative model 基础概念，但还没有系统读过 UniSim 的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。 资料来源：  本地论文 PDF：26 UniSim Time-Coarsened Dynamics of Biomole">
+<meta property="og:type" content="article">
+<meta property="og:title" content="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器">
+<meta property="og:url" content="https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/index.html">
+<meta property="og:site_name" content="Du Wei">
+<meta property="og:description" content="0. 资料定位 这份资料面向已经了解分子动力学、深度学习分子建模或 generative model 基础概念，但还没有系统读过 UniSim 的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。 资料来源：  本地论文 PDF：26 UniSim Time-Coarsened Dynamics of Biomole">
+<meta property="og:locale">
+<meta property="og:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg">
+<meta property="article:published_time" content="2026-09-01T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-09-02T07:58:35.808Z">
+<meta property="article:author" content="Du Wei">
+<meta property="article:tag" content="UniSim">
+<meta property="article:tag" content="biomolecule">
+<meta property="article:tag" content="molecular dynamics">
+<meta property="article:tag" content="world model">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器",
+  "url": "https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/",
+  "image": "https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg",
+  "datePublished": "2026-09-01T16:00:00.000Z",
+  "dateModified": "2026-09-02T07:58:35.808Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Du Wei",
+      "url": "https://do7math.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Du Wei</span></a><a class="nav-page-title" href="/"><span class="site-name">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-09-02T07:58:35.808Z" title="Updated 2026-09-02 15:58:35">2026-09-02</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h2 id="资料定位">0. 资料定位</h2>
+<p>这份资料面向已经了解分子动力学、深度学习分子建模或 generative model
+基础概念，但还没有系统读过 UniSim
+的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。</p>
+<p>资料来源：</p>
+<ul>
+<li>本地论文
+PDF：<code>26 UniSim Time-Coarsened Dynamics of Biomolecules.pdf</code></li>
+<li>论文标题：<code>UniSim: A Unified Simulator for Time-Coarsened Dynamics of Biomolecules</code></li>
+<li>作者：Ziyang Yu, Wenbing Huang, Yang Liu</li>
+<li>会议：ICML 2025, Proceedings of the 42nd International Conference on
+Machine Learning</li>
+<li>代码仓库：<a
+target="_blank" rel="noopener" href="https://github.com/yaledeus/UniSim">https://github.com/yaledeus/UniSim</a></li>
+<li>本次读取的仓库提交：<code>58b5740a076e1add1282355cc5dc7406c936afd4</code></li>
+<li>PDF
+正文抽取文件：<code>papers/text/26-unisim-time-coarsened-dynamics-of-biomolecules_clean.txt</code></li>
+</ul>
+<p>一句话概括：UniSim
+试图把小分子、肽和蛋白的全原子时间粗粒化动力学统一到一个预训练表征 +
+stochastic interpolant 生成 + force guidance 适配的框架中，以比传统 MD
+更大的时间步快速生成近似 MD 分布的轨迹。</p>
+<h2 id="先建立问题直觉">1. 先建立问题直觉</h2>
+<p>传统分子动力学模拟的核心对象是随时间演化的分子构象：</p>
+<p><span class="math display">\[
+G_t = (Z, X_t)
+\]</span></p>
+<p>其中 <code>Z</code>
+是原子类型，<code>X_t \in \mathbb{R}^{N \times 3}</code> 是第
+<code>t</code> 时刻的三维坐标。经典 MD 通常通过 Newton 方程或 Langevin
+dynamics 做数值积分。为了稳定，积分时间步很小，论文在引言中给出的量级是
+<code>10^-15 s</code>，也就是 femtosecond
+级别。问题是，很多生物分子现象关心的是 ps、ns、us
+甚至更长尺度的构象转变；如果每一步都用 fs 积分，代价会非常高。</p>
+<p>UniSim 的任务属于
+<code>time-coarsened dynamics</code>。它不追求一步一步模拟每个 fs
+级微小运动，而是学习一个更大的跳转：</p>
+<p><span class="math display">\[
+X_t \rightarrow X_{t+\tau}, \quad \tau \gg \Delta t
+\]</span></p>
+<p>可以把它理解为：传统 MD 是逐帧播放高速摄影，UniSim
+想学会跳过很多帧之后分子“合理地应该在哪里”。这里的难点不是预测一个确定坐标，而是生成一个符合参考
+MD ensemble 统计分布的轨迹。</p>
+<h2 id="unisim-解决的核心矛盾">2. UniSim 解决的核心矛盾</h2>
+<p>论文提出 UniSim 的动机主要来自三组矛盾。</p>
+<p>第一，经典 MD
+有精度和效率的权衡。量子力学方法能量计算更准，但很贵；经验力场更快，但准确性和可迁移性有限。增强采样、adaptive
+sampling
+等方法能加速一部分过程，但要在长时间尺度上同时保持效率和可信度仍然很难。</p>
+<p>第二，已有深度学习 time-coarsened dynamics
+方法多半局限在单一分子域或固定环境。例如有的只处理 peptide，有的只处理
+protein，有的还依赖特定 domain
+的手工特征。这样的方法在面对小分子、肽、蛋白、非天然氨基酸或不同溶剂/力场条件时，迁移能力不足。</p>
+<p>第三，跨域统一建模本身很困难。小分子可能只有几十个原子，蛋白可能有几百到几千个原子；不同数据集的力标签来自不同
+force field
+或量子化学计算；同一种元素在蛋白中也会因为局部化学环境不同而表现出规律性的不同角色，例如
+backbone CA 与 side-chain CB 都是碳，但语义并不相同。</p>
+<p>UniSim 的回答是三段式：</p>
+<ol type="1">
+<li>先做统一原子表征预训练，让模型从多域 3D molecular data
+中学到可迁移的局部相互作用模式。</li>
+<li>再用 stochastic interpolant 学习长时间步的状态转移，也就是从
+<code>X_0</code> 到 <code>X_1</code> 的生成桥。</li>
+<li>最后用 force guidance kernel
+在冻结主干的基础上适配特定化学环境，把物理势能/力信息注入采样过程。</li>
+</ol>
+<h2 id="总体架构">3. 总体架构</h2>
+<p>论文 Figure 2 和仓库实现可以对齐成下面这张流程图：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    A[多域 3D 分子数据&lt;br/&gt;PCQM4Mv2, ANI-1x, PepMD, PDB, ATLAS, SPF] --&gt; B[EnergyKernel / phi&lt;br/&gt;统一原子表征预训练]</span><br><span class="line">    B --&gt; C[GeomBM / phi + v + eta_z&lt;br/&gt;stochastic interpolant 向量场模型]</span><br><span class="line">    C --&gt; D[GeomFBM / zeta&lt;br/&gt;force guidance kernel]</span><br><span class="line">    D --&gt; E[SDE 推理&lt;br/&gt;自回归生成 trajectory]</span><br><span class="line">    E --&gt; F[蛋白/肽可选 OpenMM refinement]</span><br></pre></td></tr></table></figure>
+<p>对应到代码：</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>论文模块</th>
+<th>仓库核心文件</th>
+<th>主要类/函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>统一原子表征模型 <code>phi</code></td>
+<td><code>module/model.py</code></td>
+<td><code>EnergyKernel</code></td>
+<td>用 TorchMD-NET 主干 + 多个 GVP head 学 force/denoise 表征</td>
+</tr>
+<tr>
+<td>stochastic interpolant</td>
+<td><code>module/interpolant_matcher.py</code></td>
+<td><code>StochasticInterpolantMatcher</code></td>
+<td>采样中间态 <code>x_t</code>，给出速度和 denoiser 监督信号</td>
+</tr>
+<tr>
+<td>vector field model <code>varphi</code></td>
+<td><code>module/model.py</code></td>
+<td><code>GeomBM</code></td>
+<td>用预训练 encoder 输出速度场 <code>v</code> 和 denoiser
+<code>eta_z</code></td>
+</tr>
+<tr>
+<td>force guidance kernel <code>zeta</code></td>
+<td><code>module/model.py</code></td>
+<td><code>GeomFBM</code></td>
+<td>冻结 BM 主模型，训练虚拟 force guidance 修正 SDE drift</td>
+</tr>
+<tr>
+<td>图构建</td>
+<td><code>module/graph.py</code></td>
+<td><code>construct_edges</code></td>
+<td>cutoff intra-edge + KNN inter-edge + hydrogen cutoff</td>
+</tr>
+<tr>
+<td>atomic embedding expansion</td>
+<td><code>utils/torchmd_utils.py</code></td>
+<td><code>NeighborEmbedding</code></td>
+<td>基于邻居信息 softmax 选择扩展原子嵌入</td>
+</tr>
+<tr>
+<td>动态 batching</td>
+<td><code>data/dataset_wrapper.py</code></td>
+<td><code>DynamicBatchWrapper</code>,
+<code>MixDatasetWrapper</code></td>
+<td>按原子数复杂度拼 batch，混合多个数据集</td>
+</tr>
+<tr>
+<td>推理入口</td>
+<td><code>infer_prot.py</code>, <code>infer_mol.py</code></td>
+<td><code>main</code>, <code>model.sde</code></td>
+<td>对蛋白/肽输出 <code>.xtc</code>，对小分子输出 <code>.npz</code></td>
+</tr>
+<tr>
+<td>评估入口</td>
+<td><code>eval_prot.py</code>, <code>eval_mol.py</code>,
+<code>eval_all.py</code></td>
+<td><code>traj_analysis</code></td>
+<td>计算 JS distance, VAL-CA, CONTACT, ESS/s 等</td>
+</tr>
+</tbody>
+</table>
+<h2 id="数学设定">4. 数学设定</h2>
+<h3 id="分子数据集与目标">4.1 分子、数据集与目标</h3>
+<p>论文把每个分子表示为：</p>
+<p><span class="math display">\[
+G = (Z, X)
+\]</span></p>
+<p>其中：</p>
+<ul>
+<li><code>Z \in \mathbb{R}^N</code>：原子类型。</li>
+<li><code>X \in \mathbb{R}^{N \times 3}</code>：原子坐标。</li>
+<li><code>epsilon(X)</code>：势能函数。</li>
+<li><code>F = -\nabla \epsilon(X)</code>：MD force。</li>
+</ul>
+<p>数据分两类：</p>
+<ul>
+<li><code>D_1 ... D_m</code>：3D conformation
+数据，可用于表征预训练。</li>
+<li><code>T_1 ... T_l</code>：MD trajectory 数据，可从中抽取
+<code>(X_t, X_{t+\tau})</code> 训练动力学模型。</li>
+</ul>
+<p>UniSim 的三个目标是：</p>
+<ol type="1">
+<li>在多域数据上预训练统一 atomic representation model
+<code>phi</code>。</li>
+<li>用 trajectory pair 训练 vector field model
+<code>varphi</code>，学习长时间步转移。</li>
+<li>对不同 chemical environment 训练 force guidance kernel
+<code>zeta</code>，同时冻结 <code>phi</code> 与 <code>varphi</code> 作为
+reusable backbone。</li>
+</ol>
+<h3 id="统一预训练为什么不直接混所有数据">4.2
+统一预训练：为什么不直接混所有数据</h3>
+<p>如果直接把小分子、肽、蛋白的全原子图混在一起训练，会遇到两个问题。</p>
+<p>第一是尺度差异。小分子几十个原子，蛋白可能几千个原子。若直接构图，蛋白会带来非常大的计算量，也可能让模型更偏向大系统。论文提出
+<code>gradient-environment subgraph</code>：对大分子选择一个中心原子，用较小半径
+<code>delta_min</code> 定义真正参与 loss 的 gradient
+subgraph，用较大半径 <code>delta_max</code> 定义输入给模型的 environment
+subgraph。这样既保留局部环境，又避免整蛋白图过大。</p>
+<p>代码中对应 <code>data/subgraph.py</code>：</p>
+<ul>
+<li><code>SG_THRESH = 1000</code>：超过这个原子数的系统会切子图。</li>
+<li><code>graph_cut(..., radius_min=8.0, radius_max=20.0)</code>：默认内圈
+8 Å 负责计算 loss，外圈 20 Å 提供环境上下文。</li>
+<li><code>data/atlas_dataset.py</code> 和
+<code>data/pdb_dataset.py</code> 会在大蛋白上调用子图切分。</li>
+</ul>
+<p>第二是同一元素的局部角色差异。只用 periodic table 元素表作为
+embedding，会把很多局部化学模式压成一个 token。论文提出
+<code>atomic embedding expansion</code>：对每种元素准备多个可学习
+pattern embedding，让模型根据邻居和距离信息 softmax 选择组合。</p>
+<p>代码中对应 <code>utils/torchmd_utils.py</code> 的
+<code>NeighborEmbedding</code>：</p>
+<ul>
+<li><code>self.expand_embedding</code> 形状近似为
+<code>max_z x expand_embed_channels x hidden_channels</code>。</li>
+<li><code>expand_weight = softmax(linear([x, x_neighbors]))</code>。</li>
+<li><code>x_expand = expand_weight @ expand_embedding[z]</code>。</li>
+<li>最后把原始 atom embedding、扩展 embedding、邻居 embedding
+合并。</li>
+</ul>
+<p>这说明 UniSim
+的“统一”不是只把数据拼起来，而是在图尺度、元素语义和力场来源三方面都做了设计。</p>
+<h3 id="多头预训练目标">4.3 多头预训练目标</h3>
+<p>预训练阶段使用 <code>EnergyKernel</code>。它的主干是修改过的
+TorchMD-NET equivariant transformer，输出 invariant scalar feature
+<code>H</code> 和 equivariant vector feature
+<code>V</code>。然后通过不同 head 处理不同数据条件。</p>
+<p>论文把预训练数据分为两类：</p>
+<ul>
+<li>off-equilibrium conformation：有真实 force label，用 force-centric
+objective，让预测 energy 对坐标求梯度后匹配 <code>-F</code>。</li>
+<li>equilibrium conformation：无 force label，用 denoising
+objective，对加入 Gaussian noise 的构象学习恢复方向。</li>
+</ul>
+<p>代码里可以看到：</p>
+<ul>
+<li><code>EnergyKernel.energy_grad(...)</code> 先构图，再通过
+<code>pred_energy</code> 对 <code>x</code> 求 autograd gradient，输出
+<code>-grad_x</code> 作为 force。</li>
+<li><code>EnergyKernel.denoise(...)</code> 对构象加噪并构造 denoising
+force。</li>
+<li><code>EnergyKernel._train(...)</code> 根据 <code>batch["env"]</code>
+选择 <code>env_map</code>，决定走真实 force head 还是 denoise
+head。</li>
+</ul>
+<p>当前代码中的环境 head 映射：</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 21%" />
+<col style="width: 28%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: right;">数据脚本中的 env</th>
+<th>数据来源</th>
+<th style="text-align: right;"><code>EnergyKernel.env_map</code> 后的
+head</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">0</td>
+<td>PepMD</td>
+<td style="text-align: right;">1</td>
+<td>AMBER/GB-OBC peptide/protein 类环境</td>
+</tr>
+<tr>
+<td style="text-align: right;">1</td>
+<td>MD17</td>
+<td style="text-align: right;">0</td>
+<td>small molecule force 类环境</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>ANI-1x</td>
+<td style="text-align: right;">0</td>
+<td>small molecule DFT force 类环境</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>ATLAS</td>
+<td style="text-align: right;">1</td>
+<td>AMBER/GB-OBC protein 类环境</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>PCQM4Mv2</td>
+<td style="text-align: right;">2</td>
+<td>equilibrium denoising</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>PDB</td>
+<td style="text-align: right;">2</td>
+<td>equilibrium denoising</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>SPF</td>
+<td style="text-align: right;">3</td>
+<td>solvated protein fragments / DFT 类环境</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>ISO dataset</td>
+<td style="text-align: right;">0</td>
+<td>小分子或特定扩展数据脚本环境</td>
+</tr>
+</tbody>
+</table>
+<p>注意：<code>env=6</code> 出现在 <code>env_map</code> 中，但 README
+的主数据流程没有对应脚本说明，读代码时可视为预留或历史兼容项。</p>
+<h3 id="stochastic-interpolant从两端构象学习一座桥">4.4 stochastic
+interpolant：从两端构象学习一座桥</h3>
+<p>UniSim 的 vector field model 基于 stochastic interpolant。给定训练
+pair：</p>
+<p><span class="math display">\[
+X_0 = X_t,\quad X_1 = X_{t+\tau}
+\]</span></p>
+<p>构造中间态：</p>
+<p><span class="math display">\[
+X_s = (1-s)X_0 + sX_1 + \gamma(s)Z,\quad Z \sim \mathcal{N}(0, I)
+\]</span></p>
+<p>论文和代码采用：</p>
+<p><span class="math display">\[
+\gamma(s) = \sqrt{s(1-s)}\sigma
+\]</span></p>
+<p>训练目标有两部分：</p>
+<ul>
+<li>velocity head <code>v(s, X_s)</code> 预测
+<code>X_1 - X_0</code>。</li>
+<li>denoiser head <code>eta_z(s, X_s)</code> 预测噪声
+<code>Z</code>。</li>
+</ul>
+<p>代码中对应：</p>
+<ul>
+<li><code>INTERP_MATCHER.sample_conditional_flow(x0, x1, t, sigma)</code>
+返回 <code>xt, x1 - x0, z</code>。</li>
+<li><code>GeomBM._train(...)</code> 中 <code>loss_vel</code>
+匹配速度，<code>loss_den</code> 匹配噪声。</li>
+<li>额外的 <code>loss_aux</code> 用 <code>x0_pred/x1_pred</code>
+重建两端 pairwise distance，约束局部几何一致性。</li>
+</ul>
+<p>推理时，<code>GeomBM.sde(...)</code> 以 <code>x0</code> 为起点，把
+<code>s in [0,1]</code> 离散成 <code>sde_step</code> 个步子，通过 drift
++ diffusion
+生成下一个构象。然后把生成结果作为下一轮初始态，自回归生成整条
+trajectory。</p>
+<h3 id="force-guidance为什么还要再训练一个-kernel">4.5 force
+guidance：为什么还要再训练一个 kernel</h3>
+<p>只学习 trajectory pair 的 vector field 还不够，因为不同 force
+field、溶剂、温度或体系会改变目标 ensemble。UniSim 借鉴 FBM，把 force
+guidance 看作对生成分布的物理修正。直觉上，基础 vector field
+给出“从数据学到的转移方向”，force guidance
+再用势能相关项把采样往更符合特定物理环境的区域推。</p>
+<p>在代码中，<code>GeomFBM</code> 做了几件事：</p>
+<ul>
+<li>初始化时接收一个已经训练好的 <code>GeomBM</code> 作为
+<code>baseline</code>。</li>
+<li>冻结 <code>baseline</code> 的所有参数。</li>
+<li>新建一个 TorchMD-NET <code>self.net</code> 和三个 vector
+head：<code>bd0_ffn</code>, <code>bd1_ffn</code>,
+<code>iff_ffn</code>。</li>
+<li><code>bd0</code> 与 <code>bd1</code> 分别拟合两个端点的 force
+boundary。</li>
+<li><code>iff</code> 近似中间 force field。</li>
+</ul>
+<p>训练时：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">loss = loss_iff + loss_bound</span><br></pre></td></tr></table></figure>
+<p>其中 <code>loss_bound</code> 匹配端点 forces，<code>loss_iff</code>
+匹配由 stochastic interpolant、势能权重和 score 项构造出来的中间 force
+target。</p>
+<p>推理时，<code>GeomFBM.sde(...)</code> 的关键变化是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">drift = base_drift - guidance * iff</span><br></pre></td></tr></table></figure>
+<p>也就是说，<code>guidance</code> 超参数越大，物理 force guidance
+对采样路径的影响越强。论文补充实验显示，增大 <code>alpha</code>
+通常会提升结构有效性，但可能损害分布探索宽度；增大 SDE steps
+<code>T</code> 也不一定更好，因为误差会在离散 SDE 过程中累积。</p>
+<h2 id="数据集与时间尺度">5. 数据集与时间尺度</h2>
+<p>论文的数据设计可以分成预训练数据和 trajectory 数据。</p>
+<p>预训练数据包括：</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Dataset</th>
+<th>数据性质</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>small molecule</td>
+<td>PCQM4Mv2</td>
+<td>约 3M equilibrium conformations</td>
+<td>denoising / equilibrium 表征</td>
+</tr>
+<tr>
+<td>small molecule</td>
+<td>ANI-1x</td>
+<td>约 5M DFT energies/forces</td>
+<td>force-centric 表征</td>
+</tr>
+<tr>
+<td>peptide</td>
+<td>PepMD</td>
+<td>约 1M conformations, 有 trajectory 与 force</td>
+<td>表征 + 动力学</td>
+</tr>
+<tr>
+<td>protein</td>
+<td>PDB</td>
+<td>约 200K crystal structures</td>
+<td>equilibrium 表征</td>
+</tr>
+<tr>
+<td>protein</td>
+<td>ATLAS</td>
+<td>约 500K conformations, 有 trajectory 与 force</td>
+<td>表征 + 蛋白动力学</td>
+</tr>
+<tr>
+<td>protein fragment</td>
+<td>SPF</td>
+<td>约 2M off-equilibrium solvated fragments</td>
+<td>水环境/片段相互作用表征</td>
+</tr>
+</tbody>
+</table>
+<p>trajectory 数据的关键时间尺度：</p>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th>Dataset</th>
+<th style="text-align: right;">frame spacing</th>
+<th style="text-align: right;">trajectory simulation time</th>
+<th style="text-align: right;">coarsened time <code>tau</code></th>
+<th style="text-align: right;">train/test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MD17/MD22</td>
+<td style="text-align: right;">0.5 fs</td>
+<td style="text-align: right;">不固定</td>
+<td style="text-align: right;">100 ps</td>
+<td style="text-align: right;">8 train trajs / 5 test trajs</td>
+</tr>
+<tr>
+<td>PepMD</td>
+<td style="text-align: right;">1 ps</td>
+<td style="text-align: right;">100 ns</td>
+<td style="text-align: right;">10 ps</td>
+<td style="text-align: right;">269 train / 14 test</td>
+</tr>
+<tr>
+<td>ATLAS</td>
+<td style="text-align: right;">100 ps</td>
+<td style="text-align: right;">100 ns</td>
+<td style="text-align: right;">1 ns</td>
+<td style="text-align: right;">790 train / 14 test</td>
+</tr>
+</tbody>
+</table>
+<p>理解这里的 <code>tau</code> 很重要。UniSim
+在不同域里学习的跳步尺度不同：小分子和 ATLAS 蛋白的 coarsened step
+更大，PepMD peptide 的 step 较小。复现实验时不要只看
+<code>sde_step</code>，还要看数据预处理脚本里 pair 的间隔。</p>
+<p>代码细节：</p>
+<ul>
+<li><code>data/md17_dataset.py</code>：<code>unit = 2000</code>，因为
+MD17/MD22 frame spacing 是 0.5 fs，所以 2000 帧等于 1 ps；默认
+<code>delta=100</code> 对应 100 ps。</li>
+<li><code>data/pepmd_dataset.py</code>：默认 README 使用
+<code>delta=10</code>，对应 10 ps。</li>
+<li><code>data/atlas_dataset.py</code>：默认
+<code>delta=10</code>，脚本注释说明单位为 <code>10 x ps</code>，也就是
+100 ps frame spacing 下的 1 ns。</li>
+</ul>
+<h2 id="训练流程从-readme-到源码">6. 训练流程：从 README 到源码</h2>
+<h3 id="环境配置">6.1 环境配置</h3>
+<p>README 建议使用 <code>cuda&gt;=12.0</code> 的 conda 环境：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mamba <span class="built_in">env</span> create -f env.yaml</span><br><span class="line">conda activate dev</span><br></pre></td></tr></table></figure>
+<p>代码依赖包括 PyTorch、TorchMD
+相关实现、OpenMM、mdtraj、RDKit、deeptime、emcee
+等。实际复现时最容易卡住的是 OpenMM、mdtraj、RDKit、CUDA/PyTorch
+版本匹配。</p>
+<h3 id="数据准备">6.2 数据准备</h3>
+<p>README 推荐把所有数据放在：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./dataset</span><br></pre></td></tr></table></figure>
+<p>但配置文件里路径可以改。数据预处理最终基本都会写成 memory-mapped
+dataset：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">data.bin</span><br><span class="line">index.txt</span><br></pre></td></tr></table></figure>
+<p>对应 <code>data/mmap_dataset.py</code>。每条样本通常包含：</p>
+<ul>
+<li><code>atype</code>：原子类型，使用 <code>ATOM_TYPE</code> 中的元素
+index。</li>
+<li><code>x0</code>：起始构象坐标，单位通常是
+Angstrom，并且已做中心化。</li>
+<li><code>x1</code>：终止构象坐标，只有 trajectory pair 数据有。</li>
+<li><code>force0</code>, <code>force1</code>：端点 force，只有有 force
+label 的数据有。</li>
+<li><code>pot0</code>, <code>pot1</code>：归一化势能，trajectory force
+guidance 会用到。</li>
+<li><code>mask</code>：哪些原子参与 loss。子图里通常只有内圈原子参与
+loss。</li>
+<li><code>edge_mask</code>：构图时区分同一 monomer
+或跨区域相互作用。</li>
+<li><code>env</code>：数据来源/环境 id。</li>
+</ul>
+<h3 id="第一阶段预训练-energykernel">6.3 第一阶段：预训练
+EnergyKernel</h3>
+<p>命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GPU=0,1,2,3 bash train.sh ./config/train.yaml</span><br></pre></td></tr></table></figure>
+<p><code>config/train.yaml</code> 的核心字段：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">data:</span></span><br><span class="line">  <span class="attr">dataset:</span> <span class="string">uni</span></span><br><span class="line">  <span class="attr">same_origin:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">complexity:</span> <span class="string">&quot;n&quot;</span></span><br><span class="line">  <span class="attr">ubound_per_batch:</span> <span class="string">5_000</span></span><br><span class="line">  <span class="attr">max_batches:</span> <span class="string">50_000</span></span><br><span class="line"></span><br><span class="line"><span class="attr">model:</span></span><br><span class="line">  <span class="attr">model_type:</span> <span class="string">ekernel</span></span><br><span class="line">  <span class="attr">hidden_dim:</span> <span class="number">256</span></span><br><span class="line">  <span class="attr">heads:</span> <span class="number">8</span></span><br><span class="line">  <span class="attr">layers:</span> <span class="number">4</span></span><br><span class="line">  <span class="attr">cutoff_upper:</span> <span class="number">5.0</span></span><br><span class="line">  <span class="attr">cutoff_H:</span> <span class="number">3.5</span></span><br></pre></td></tr></table></figure>
+<p>源码路径：</p>
+<ul>
+<li><code>train.py</code> 根据 <code>model_type: ekernel</code> 创建
+<code>EnergyKernel</code>。</li>
+<li><code>trainer/ekernel_trainer.py</code> 调用
+<code>model._train(batch)</code>。</li>
+<li><code>EnergyKernel._train</code> 根据 <code>env_map</code> 选择
+force head 或 denoise head。</li>
+</ul>
+<p>这一阶段的产物是一个统一原子表征模型 checkpoint，后续 BM 阶段通过
+<code>model.encoder</code> 加载。</p>
+<h3 id="第二阶段训练-vector-field-model">6.4 第二阶段：训练 vector field
+model</h3>
+<p>命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GPU=0,1,2,3 bash train.sh ./config/train_bm.yaml</span><br></pre></td></tr></table></figure>
+<p>复现前需要在 <code>config/train_bm.yaml</code> 中设置：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">model:</span></span><br><span class="line">  <span class="attr">encoder:</span> <span class="string">/path/to/pretrained_energy_kernel.ckpt</span></span><br><span class="line">  <span class="attr">model_type:</span> <span class="string">bm</span></span><br></pre></td></tr></table></figure>
+<p>如果不设置 <code>encoder</code>，代码会新建一个未预训练的
+<code>EnergyKernel</code>，这更接近 ablation 中的
+<code>UniSim/p</code>，不是完整 UniSim 的标准流程。</p>
+<p>源码路径：</p>
+<ul>
+<li><code>train.py</code> 创建 <code>GeomBM(encoder, ...)</code>。</li>
+<li><code>GeomBM._train</code> 调用 <code>sample_conditional_flow</code>
+构造 <code>x_t</code>。</li>
+<li><code>loss_vel</code> 学 <code>X_1 - X_0</code>。</li>
+<li><code>loss_den</code> 学噪声 <code>Z</code>。</li>
+<li><code>loss_aux</code> 约束两端构象的 pairwise distance。</li>
+</ul>
+<h3 id="第三阶段训练-force-guidance-kernel">6.5 第三阶段：训练 force
+guidance kernel</h3>
+<p>README 给出的命令是：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">GPU=0,1,2,3 bash train.sh ./config/train_fbm.yaml</span><br></pre></td></tr></table></figure>
+<p>但需要注意：本次读取的仓库版本中，<code>config/train_fbm.yaml</code>
+的内容看起来仍是 BM 配置，里面写的是 <code>model_type: bm</code> 和
+<code>encoder: null</code>，没有 <code>baseline</code> 字段。按照
+<code>train.py</code> 的逻辑，训练 FBM 应该需要类似下面的配置：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">data:</span></span><br><span class="line">  <span class="attr">same_origin:</span> <span class="literal">true</span></span><br><span class="line"></span><br><span class="line"><span class="attr">model:</span></span><br><span class="line">  <span class="attr">baseline:</span> <span class="string">/path/to/trained_geom_bm.ckpt</span></span><br><span class="line">  <span class="attr">model_type:</span> <span class="string">fbm</span></span><br></pre></td></tr></table></figure>
+<p>这里的 <code>same_origin: true</code> 也与 README 中“训练 force
+guidance kernel 时应让 mini-batch 来自同一 molecule”的说明一致。原因是
+<code>GeomFBM._train</code> 中构造中间 force target 时，会在 mini-batch
+内对 trajectory pair 做归一化，混入不同 molecule
+可能让这个估计更不稳定。</p>
+<p>源码路径：</p>
+<ul>
+<li><code>train.py</code> 在 <code>model_type: FBM</code> 时加载
+<code>baseline = torch.load(args.model.baseline)</code>。</li>
+<li><code>GeomFBM.__init__</code> 冻结 baseline 参数。</li>
+<li><code>GeomFBM._train</code> 计算 <code>loss_bound</code> 与
+<code>loss_iff</code>。</li>
+<li><code>GeomFBM.sde</code> 在推理 drift 中加入 force guidance
+修正。</li>
+</ul>
+<h2 id="推理流程">7. 推理流程</h2>
+<h3 id="蛋白肽推理">7.1 蛋白/肽推理</h3>
+<p>入口：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python infer_prot.py --config ./config/infer_prot.yaml</span><br></pre></td></tr></table></figure>
+<p>核心配置：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">mode:</span> <span class="string">all</span></span><br><span class="line"><span class="attr">test_set:</span> <span class="string">./dataset/ATLAS/test.jsonl</span></span><br><span class="line"><span class="attr">ckpt:</span> <span class="string">/path/to/ckpt/unisim_atlas.ckpt</span></span><br><span class="line"><span class="attr">inf_step:</span> <span class="string">1_000</span></span><br><span class="line"><span class="attr">sde_step:</span> <span class="number">50</span></span><br><span class="line"><span class="attr">temperature:</span> <span class="number">300</span></span><br><span class="line"><span class="attr">guidance:</span> <span class="number">0.05</span></span><br><span class="line"><span class="attr">use_energy_minim:</span> <span class="literal">true</span></span><br><span class="line"><span class="attr">force_field:</span> <span class="string">amber14-implicit</span></span><br><span class="line"><span class="attr">batch_size:</span> <span class="number">1</span></span><br><span class="line"><span class="attr">gpu:</span> <span class="number">0</span></span><br></pre></td></tr></table></figure>
+<p>推理过程：</p>
+<ol type="1">
+<li>读取 checkpoint。</li>
+<li>从 PDB 或 test split 构造 batch。</li>
+<li>每一轮调用 <code>model.sde(...)</code>，生成下一个构象。</li>
+<li>若 <code>use_energy_minim: true</code>，调用 OpenMM 做 harmonic
+constraint refinement。</li>
+<li>把新构象写回 <code>batch["x0"]</code>，继续自回归生成。</li>
+<li>输出 <code>.xtc</code> trajectory 和耗时 CSV。</li>
+</ol>
+<p>一个关键细节：<code>infer_prot.py</code> 中坐标会在 Angstrom 和 nm
+之间转换。模型内部多用 Angstrom，mdtraj/OpenMM 输出常用 nm。</p>
+<h3 id="小分子推理">7.2 小分子推理</h3>
+<p>入口：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python infer_mol.py --config ./config/infer_mol.yaml</span><br></pre></td></tr></table></figure>
+<p>核心配置：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">test_set:</span> <span class="string">./dataset/md22/test.jsonl</span></span><br><span class="line"><span class="attr">ckpt:</span> <span class="string">/path/to/ckpt/unisim_md17.ckpt</span></span><br><span class="line"><span class="attr">inf_step:</span> <span class="string">1_000</span></span><br><span class="line"><span class="attr">sde_step:</span> <span class="number">15</span></span><br><span class="line"><span class="attr">temperature:</span> <span class="number">300</span></span><br><span class="line"><span class="attr">guidance:</span> <span class="number">0.2</span></span><br><span class="line"><span class="attr">use_energy_minim:</span> <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+<p>小分子推理默认不做 OpenMM refinement，输出
+<code>.npz</code>，其中保存：</p>
+<ul>
+<li><code>z</code>：原子类型。</li>
+<li><code>positions</code>：生成轨迹坐标。</li>
+</ul>
+<h2 id="评估指标怎么读">8. 评估指标怎么读</h2>
+<p>UniSim 的目标不是逐点预测 MD 轨迹，而是生成与 MD reference ensemble
+分布相近的构象集合。因此评估更关注分布相似性、结构有效性和采样效率。</p>
+<p>主要指标：</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>指标</th>
+<th>越大/越小</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JS distance on PWD</td>
+<td>越小越好</td>
+<td>pairwise distance 分布是否接近 MD</td>
+</tr>
+<tr>
+<td>JS distance on Rg</td>
+<td>越小越好</td>
+<td>radius of gyration 分布是否接近 MD</td>
+</tr>
+<tr>
+<td>JS distance on TIC</td>
+<td>越小越好</td>
+<td>慢变量投影的一维分布是否接近 MD</td>
+</tr>
+<tr>
+<td>JS distance on TIC-2D</td>
+<td>越小越好</td>
+<td>最慢两个 TIC 的联合分布是否接近 MD</td>
+</tr>
+<tr>
+<td>VAL-CA</td>
+<td>越大越好</td>
+<td>蛋白/肽构象中无 bond break / bond clash 的比例</td>
+</tr>
+<tr>
+<td>CONTACT</td>
+<td>越小越好</td>
+<td>residue contact map 与 MD 的 RMSE</td>
+</tr>
+<tr>
+<td>ESS/s</td>
+<td>越大越好</td>
+<td>每秒有效样本量，衡量采样效率</td>
+</tr>
+</tbody>
+</table>
+<p>代码对应：</p>
+<ul>
+<li><code>eval_prot.py</code>：蛋白/肽指标，包括 Ramachandran JS, PWD,
+Rg, TIC, TIC-2D, VAL-CA, CONTACT, ESS/s。</li>
+<li><code>eval_mol.py</code>：小分子主要计算 TIC 和 TIC-2D JS
+distance。</li>
+<li><code>utils/tica_utils.py</code>：TICA feature、TICA 模型、ESS
+计算。</li>
+<li><code>utils/backbone_utils.py</code>：蛋白 backbone 有效性、contact
+等相关计算。</li>
+</ul>
+<h2 id="论文结果解读">9. 论文结果解读</h2>
+<h3 id="pepmd-peptide">9.1 PepMD peptide</h3>
+<p>PepMD 测试集包含 14 个 test peptides。Table 1 中完整 UniSim
+的主要结果：</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">PWD JS</th>
+<th style="text-align: right;">Rg JS</th>
+<th style="text-align: right;">TIC JS</th>
+<th style="text-align: right;">TIC-2D JS</th>
+<th style="text-align: right;">VAL-CA</th>
+<th style="text-align: right;">CONTACT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FBM</td>
+<td style="text-align: right;">0.361</td>
+<td style="text-align: right;">0.411</td>
+<td style="text-align: right;">0.510</td>
+<td style="text-align: right;">0.736</td>
+<td style="text-align: right;">0.539</td>
+<td style="text-align: right;">0.205</td>
+</tr>
+<tr>
+<td>Timewarp</td>
+<td style="text-align: right;">0.362</td>
+<td style="text-align: right;">0.386</td>
+<td style="text-align: right;">0.514</td>
+<td style="text-align: right;">0.745</td>
+<td style="text-align: right;">0.028</td>
+<td style="text-align: right;">0.195</td>
+</tr>
+<tr>
+<td>ITO</td>
+<td style="text-align: right;">0.367</td>
+<td style="text-align: right;">0.371</td>
+<td style="text-align: right;">0.495</td>
+<td style="text-align: right;">0.748</td>
+<td style="text-align: right;">0.160</td>
+<td style="text-align: right;">0.174</td>
+</tr>
+<tr>
+<td>SD</td>
+<td style="text-align: right;">0.727</td>
+<td style="text-align: right;">0.776</td>
+<td style="text-align: right;">0.541</td>
+<td style="text-align: right;">0.782</td>
+<td style="text-align: right;">0.268</td>
+<td style="text-align: right;">0.466</td>
+</tr>
+<tr>
+<td>UniSim/p</td>
+<td style="text-align: right;">0.400</td>
+<td style="text-align: right;">0.474</td>
+<td style="text-align: right;">0.503</td>
+<td style="text-align: right;">0.738</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.234</td>
+</tr>
+<tr>
+<td>UniSim/g</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.510</td>
+<td style="text-align: right;">0.738</td>
+<td style="text-align: right;">0.505</td>
+<td style="text-align: right;">0.162</td>
+</tr>
+<tr>
+<td>UniSim</td>
+<td style="text-align: right;">0.328</td>
+<td style="text-align: right;">0.330</td>
+<td style="text-align: right;">0.510</td>
+<td style="text-align: right;">0.731</td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;">0.157</td>
+</tr>
+</tbody>
+</table>
+<p>读法：</p>
+<ul>
+<li><code>UniSim/p</code> 是没有预训练的 vector field baseline。</li>
+<li><code>UniSim/g</code> 加了统一预训练，PWD/Rg/CONTACT
+明显改善，说明跨域表征预训练确实有贡献。</li>
+<li>完整 <code>UniSim</code> 再加 force guidance，VAL-CA 从
+<code>0.505</code> 提升到 <code>0.575</code>，CONTACT 也略好，说明
+guidance 更偏向提升物理有效性和结构一致性。</li>
+<li>TIC 指标没有全面领先，说明慢变量分布恢复仍然是难点。</li>
+</ul>
+<h3 id="md22-small-molecule-transfer">9.2 MD22 small molecule
+transfer</h3>
+<p>Table 2 对 MD22 的 5 个小分子测试，比较 <code>UniSim/g</code> 和完整
+UniSim：</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">TIC JS</th>
+<th style="text-align: right;">TIC-2D JS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UniSim/g</td>
+<td style="text-align: right;">0.408</td>
+<td style="text-align: right;">0.791</td>
+</tr>
+<tr>
+<td>UniSim</td>
+<td style="text-align: right;">0.368</td>
+<td style="text-align: right;">0.765</td>
+</tr>
+</tbody>
+</table>
+<p>这里的实验设定很关键：vector field 之前在 PepMD
+上训练，然后固定它，在 MD17 上训练 force guidance kernel，再迁移到
+MD22。结果说明 force guidance 对 novel chemical environment
+的适配有帮助。不过指标只覆盖
+TIC/TIC-2D，不能过度解读成所有小分子物理性质都已可靠。</p>
+<h3 id="atlas-protein">9.3 ATLAS protein</h3>
+<p>Table 3 在 14 个 ATLAS protein monomers 上评估：</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">PWD JS</th>
+<th style="text-align: right;">Rg JS</th>
+<th style="text-align: right;">TIC JS</th>
+<th style="text-align: right;">VAL-CA</th>
+<th style="text-align: right;">CONTACT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FBM</td>
+<td style="text-align: right;">0.519</td>
+<td style="text-align: right;">0.597</td>
+<td style="text-align: right;">0.621</td>
+<td style="text-align: right;">0.012</td>
+<td style="text-align: right;">0.252</td>
+</tr>
+<tr>
+<td>ITO</td>
+<td style="text-align: right;">0.588</td>
+<td style="text-align: right;">0.775</td>
+<td style="text-align: right;">0.624</td>
+<td style="text-align: right;">0.052</td>
+<td style="text-align: right;">0.428</td>
+</tr>
+<tr>
+<td>SD</td>
+<td style="text-align: right;">0.604</td>
+<td style="text-align: right;">0.762</td>
+<td style="text-align: right;">0.605</td>
+<td style="text-align: right;">0.001</td>
+<td style="text-align: right;">0.235</td>
+</tr>
+<tr>
+<td>UniSim/g</td>
+<td style="text-align: right;">0.508</td>
+<td style="text-align: right;">0.569</td>
+<td style="text-align: right;">0.543</td>
+<td style="text-align: right;">0.071</td>
+<td style="text-align: right;">0.171</td>
+</tr>
+<tr>
+<td>UniSim</td>
+<td style="text-align: right;">0.506</td>
+<td style="text-align: right;">0.554</td>
+<td style="text-align: right;">0.542</td>
+<td style="text-align: right;">0.079</td>
+<td style="text-align: right;">0.173</td>
+</tr>
+</tbody>
+</table>
+<p>读法：</p>
+<ul>
+<li>UniSim 在 PWD/Rg/TIC 和 VAL-CA 上优于列出的 baselines。</li>
+<li>CONTACT 上完整 UniSim 与 <code>UniSim/g</code>
+非常接近，<code>UniSim/g</code> 数值略低。</li>
+<li>VAL-CA 绝对值只有
+<code>0.079</code>，即使是最好的结果也很低。这说明大蛋白全原子长步生成仍然很难，不能把结果理解为已经可直接替代生产级
+MD。</li>
+<li>论文图示强调 UniSim 能在少量迭代中跨越能垒、探索不同 metastable
+states，但长时间稳定性仍需要进一步研究。</li>
+</ul>
+<h3 id="alanine-dipeptide-case-study">9.4 Alanine dipeptide case
+study</h3>
+<p>AD 只有 22
+个原子，但自由能景观丰富，是检验长时间尺度构象采样的经典小系统。论文设置：</p>
+<ul>
+<li>从 mdshare 获得 3 条独立 250 ns MD trajectory。</li>
+<li>train/valid/test 各用一条。</li>
+<li><code>tau = 100 ps</code>。</li>
+<li>随机采样 200,000 个 data pairs 用于训练/验证。</li>
+<li>在 PepMD 训练后的 UniSim 上 finetune，学习率 <code>1e-4</code>，300
+epochs。</li>
+<li>推理 chain length 为 100,000。</li>
+</ul>
+<p>结果显示 UniSim 能覆盖 C5、C7eq、alpha_L、alpha’_R、alpha_R 等
+metastable states，并且 Ramachandran/TIC-2D 可视化与 MD
+较一致。学习者可以把这个实验理解为：AD 是一个可视化友好的 sanity
+check，用来验证模型是否能恢复已知自由能盆，而不只是短轨迹局部抖动。</p>
+<h3 id="效率">9.5 效率</h3>
+<p>补充材料 E.2 用 ESS/s 比较 UniSim 与 OpenMM MD。论文报告 UniSim 在
+PepMD 上平均约 <code>25x</code> ESS/s
+提升。推理中每一轮平均神经网络生成约 <code>0.120 s</code>，OpenMM
+refinement 约 <code>0.152 s</code>，两者在同一数量级。训练基础设施为 8
+张 NVIDIA RTX 3090，一周内完成训练；推理使用单张 RTX 3090。</p>
+<h2 id="重要消融结论">10. 重要消融结论</h2>
+<h3 id="guidance-strength-与-sde-steps">10.1 guidance strength 与 SDE
+steps</h3>
+<p>Table 8 比较不同 <code>T</code> 和 <code>alpha</code>：</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th style="text-align: right;">PWD JS</th>
+<th style="text-align: right;">Rg JS</th>
+<th style="text-align: right;">TIC JS</th>
+<th style="text-align: right;">TIC-2D JS</th>
+<th style="text-align: right;">VAL-CA</th>
+<th style="text-align: right;">CONTACT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T=15, alpha=0.05</td>
+<td style="text-align: right;">0.328</td>
+<td style="text-align: right;">0.330</td>
+<td style="text-align: right;">0.510</td>
+<td style="text-align: right;">0.731</td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;">0.157</td>
+</tr>
+<tr>
+<td>T=15, alpha=0.06</td>
+<td style="text-align: right;">0.340</td>
+<td style="text-align: right;">0.372</td>
+<td style="text-align: right;">0.511</td>
+<td style="text-align: right;">0.740</td>
+<td style="text-align: right;">0.594</td>
+<td style="text-align: right;">0.167</td>
+</tr>
+<tr>
+<td>T=15, alpha=0.07</td>
+<td style="text-align: right;">0.349</td>
+<td style="text-align: right;">0.384</td>
+<td style="text-align: right;">0.523</td>
+<td style="text-align: right;">0.736</td>
+<td style="text-align: right;">0.607</td>
+<td style="text-align: right;">0.195</td>
+</tr>
+<tr>
+<td>T=25, alpha=0.05</td>
+<td style="text-align: right;">0.391</td>
+<td style="text-align: right;">0.474</td>
+<td style="text-align: right;">0.507</td>
+<td style="text-align: right;">0.738</td>
+<td style="text-align: right;">0.441</td>
+<td style="text-align: right;">0.231</td>
+</tr>
+<tr>
+<td>T=25, alpha=0.06</td>
+<td style="text-align: right;">0.404</td>
+<td style="text-align: right;">0.445</td>
+<td style="text-align: right;">0.505</td>
+<td style="text-align: right;">0.734</td>
+<td style="text-align: right;">0.468</td>
+<td style="text-align: right;">0.244</td>
+</tr>
+<tr>
+<td>T=25, alpha=0.07</td>
+<td style="text-align: right;">0.409</td>
+<td style="text-align: right;">0.488</td>
+<td style="text-align: right;">0.516</td>
+<td style="text-align: right;">0.742</td>
+<td style="text-align: right;">0.496</td>
+<td style="text-align: right;">0.239</td>
+</tr>
+</tbody>
+</table>
+<p>结论：</p>
+<ul>
+<li>增大 <code>alpha</code> 倾向于提高 VAL-CA，但 PWD/Rg/CONTACT
+可能变差。</li>
+<li><code>T=25</code> 不比 <code>T=15</code> 稳定更好，说明离散 SDE
+步数太多会增加误差累积。</li>
+<li>这和直觉相反：更多微步不一定更准，因为模型每一步都有近似误差。</li>
+</ul>
+<h3 id="atomic-embedding-expansion">10.2 atomic embedding expansion</h3>
+<p>Table 9 移除 expanded atomic embedding <code>A_e</code>：</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th style="text-align: right;">PWD JS</th>
+<th style="text-align: right;">Rg JS</th>
+<th style="text-align: right;">TIC JS</th>
+<th style="text-align: right;">TIC-2D JS</th>
+<th style="text-align: right;">VAL-CA</th>
+<th style="text-align: right;">CONTACT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UniSim/g</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.510</td>
+<td style="text-align: right;">0.738</td>
+<td style="text-align: right;">0.505</td>
+<td style="text-align: right;">0.162</td>
+</tr>
+<tr>
+<td>UniSim/g w/o A_e</td>
+<td style="text-align: right;">0.389</td>
+<td style="text-align: right;">0.453</td>
+<td style="text-align: right;">0.516</td>
+<td style="text-align: right;">0.732</td>
+<td style="text-align: right;">0.397</td>
+<td style="text-align: right;">0.228</td>
+</tr>
+</tbody>
+</table>
+<p>移除 <code>A_e</code> 后，PWD、Rg、VAL-CA、CONTACT
+都明显变差，说明局部化学模式的扩展原子嵌入不是装饰性模块，而是跨域表征的重要部件。</p>
+<h2 id="从代码角度重新理解-unisim">11. 从代码角度重新理解 UniSim</h2>
+<h3 id="train.py-是三阶段训练分发器">11.1 <code>train.py</code>
+是三阶段训练分发器</h3>
+<p><code>train.py</code> 的核心逻辑是根据
+<code>args.model.model_type</code> 分发：</p>
+<ul>
+<li><code>EKERNEL</code>：创建或加载 <code>EnergyKernel</code>。</li>
+<li><code>BM</code>：加载 <code>EnergyKernel</code> 作为 encoder，创建
+<code>GeomBM</code>。</li>
+<li><code>FBM</code>：加载 <code>baseline</code>，创建
+<code>GeomFBM</code>。</li>
+</ul>
+<p>这说明 repo 没有三个完全独立的训练脚本，而是一个统一训练入口，通过
+YAML 切换阶段。</p>
+<h3 id="energykernel-的-force-是-energy-gradient">11.2
+<code>EnergyKernel</code> 的 force 是 energy gradient</h3>
+<p><code>EnergyKernel.energy_grad</code> 不是直接输出 force，而是：</p>
+<ol type="1">
+<li>网络输出 per-atom scalar。</li>
+<li>scatter sum 得到分子 energy。</li>
+<li>对坐标 <code>x</code> 做 autograd。</li>
+<li>返回 <code>-grad_x</code> 作为 force。</li>
+</ol>
+<p>这符合 conservative force field 的思想，也解释了为什么模型需要
+SO(3)-equivariant vector feature 和 scalar energy head 配合。</p>
+<h3 id="geombm-的训练标签其实很简单">11.3 <code>GeomBM</code>
+的训练标签其实很简单</h3>
+<p>虽然论文公式看起来复杂，但代码中最核心的标签是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">xt = x0 + t * (x1 - x0) + gamma(t) * z</span><br><span class="line">vel_gt = x1 - x0</span><br><span class="line">den_gt = z</span><br></pre></td></tr></table></figure>
+<p>模型学习：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">vel_pred -&gt; vel_gt</span><br><span class="line">den_pred -&gt; den_gt</span><br></pre></td></tr></table></figure>
+<p>再加一个 pairwise distance auxiliary loss。理解这一点后，stochastic
+interpolant
+就没有那么玄：它是在随机桥上的任意中间点，预测这座桥的方向和噪声成分。</p>
+<h3 id="geomfbm-是冻结主模型后的物理修正器">11.4 <code>GeomFBM</code>
+是冻结主模型后的物理修正器</h3>
+<p><code>GeomFBM</code> 不重新训练 BM 主干，而是在冻结主干的前提下学习
+force
+guidance。这样做的优点是参数高效，也让跨环境适配更轻；缺点是如果基础
+vector field 在某个新域已经偏得很远，guidance kernel
+可能只能修正一部分。</p>
+<h3 id="构图逻辑有-domain-假设">11.5 构图逻辑有 domain 假设</h3>
+<p><code>construct_edges</code> 会构造两类边：</p>
+<ul>
+<li>同 batch、同区域内的 cutoff graph。</li>
+<li>不同区域之间，从 masked ligand 区域出发的 KNN graph。</li>
+</ul>
+<p>随后对涉及 H 的边施加
+<code>cutoff_H=3.5 Å</code>。这套逻辑既服务一般分子，也保留了
+ligand/protein complex 的扩展可能。当前 UniSim 论文主实验并不以 complex
+docking 为核心，但代码里已经有 <code>make_batch_complex</code>
+这类雏形。</p>
+<h2 id="复现实操路线">12. 复现实操路线</h2>
+<p>如果目标是“跑通官方流程”，建议按下面顺序来，而不是直接训练完整
+UniSim。</p>
+<h3 id="最小阅读顺序">12.1 最小阅读顺序</h3>
+<ol type="1">
+<li>读 <code>README.md</code>，确认数据下载、权重下载、训练命令。</li>
+<li>读 <code>config/train.yaml</code>,
+<code>config/train_bm.yaml</code>, <code>config/infer_prot.yaml</code>,
+<code>config/infer_mol.yaml</code>。</li>
+<li>读 <code>train.py</code>，理解 <code>model_type</code> 分发。</li>
+<li>读 <code>module/model.py</code>，只看 <code>EnergyKernel</code>,
+<code>GeomBM</code>, <code>GeomFBM</code> 三个类。</li>
+<li>读 <code>module/interpolant_matcher.py</code>，把 stochastic
+interpolant 的采样目标看懂。</li>
+<li>读 <code>data/collate.py</code> 和
+<code>data/mmap_dataset.py</code>，确认 batch 字段。</li>
+<li>读 <code>infer_prot.py</code> 或 <code>infer_mol.py</code>，看推理
+loop。</li>
+<li>最后再读 <code>eval_prot.py</code>,
+<code>eval_mol.py</code>，理解指标。</li>
+</ol>
+<h3 id="推荐的跑通顺序">12.2 推荐的跑通顺序</h3>
+<p>第一步，只跑 inference。下载作者提供的 checkpoints 和 processed
+datasets 后，先用：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python infer_mol.py --config ./config/infer_mol.yaml</span><br></pre></td></tr></table></figure>
+<p>或：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python infer_prot.py --config ./config/infer_prot.yaml</span><br></pre></td></tr></table></figure>
+<p>确认环境能加载模型、构造 batch、写出 trajectory。</p>
+<p>第二步，跑 evaluation：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python eval_mol.py --ref /path/to/ref.npz --model /path/to/model.npz --mol DHA --name UniSim --plot</span><br></pre></td></tr></table></figure>
+<p>或：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python eval_prot.py --top /path/to/state0.pdb --ref /path/to/ref.xtc --model /path/to/model.xtc</span><br></pre></td></tr></table></figure>
+<p>第三步，再尝试训练 BM 或
+FBM。完整预训练成本很高，不建议把它作为第一次复现目标。</p>
+<h3 id="训练时的检查清单">12.3 训练时的检查清单</h3>
+<ul>
+<li><code>save_dir</code> 是否改成真实可写路径。</li>
+<li><code>encoder</code> 是否指向预训练 <code>EnergyKernel</code>
+checkpoint。</li>
+<li><code>baseline</code> 是否指向已训练 <code>GeomBM</code>
+checkpoint。</li>
+<li>训练 FBM 时 <code>model_type</code> 是否为 <code>fbm</code>。</li>
+<li>训练 FBM 时 <code>same_origin</code> 是否需要设为
+<code>true</code>。</li>
+<li><code>batch_size</code> 是否与 GPU 数量匹配。README 说明多 GPU 时
+<code>batch_size</code> 应按 GPU 数设置，<code>train.py</code> 会再除以
+GPU 数。</li>
+<li>数据路径是否与 <code>config/*.yaml</code> 一致。</li>
+<li>OpenMM force field 名称是否与体系匹配。</li>
+<li>小分子 <code>.npz</code> 中 key 是否符合代码预期：参考轨迹用
+<code>R</code>, <code>z</code>，生成轨迹用 <code>positions</code>。</li>
+</ul>
+<h2 id="易错点与代码疑点">13. 易错点与代码疑点</h2>
+<h3 id="configtrain_fbm.yaml-当前疑似不是-fbm-配置">13.1
+<code>config/train_fbm.yaml</code> 当前疑似不是 FBM 配置</h3>
+<p>仓库当前版本中 <code>config/train_fbm.yaml</code> 与
+<code>config/train_bm.yaml</code> 内容基本一致，仍写着：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">model:</span></span><br><span class="line">  <span class="attr">encoder:</span> <span class="literal">null</span></span><br><span class="line">  <span class="attr">model_type:</span> <span class="string">bm</span></span><br></pre></td></tr></table></figure>
+<p>但 <code>train.py</code> 中 FBM 分支需要：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">model:</span></span><br><span class="line">  <span class="attr">baseline:</span> <span class="string">/path/to/bm.ckpt</span></span><br><span class="line">  <span class="attr">model_type:</span> <span class="string">fbm</span></span><br></pre></td></tr></table></figure>
+<p>因此如果直接运行 README 的 FBM 命令，可能不会训练 force guidance
+kernel，而是又训练了 BM。复现前应手动检查配置。</p>
+<h3 id="readme-中-bmfbm-的配置说明比配置文件更可靠">13.2 README 中
+BM/FBM 的配置说明比配置文件更可靠</h3>
+<p>README 明确写到：</p>
+<ul>
+<li><code>encoder</code> 用于 vector field model。</li>
+<li><code>baseline</code> 用于 force guidance kernel。</li>
+<li><code>model_type</code> 可选 <code>ekernel</code>, <code>bm</code>,
+<code>fbm</code>。</li>
+</ul>
+<p>因此学习时应以 README + <code>train.py</code>
+逻辑为准，而不是盲信当前 YAML 文件。</p>
+<h3 id="val-ca-不是小瑕疵">13.3 VAL-CA 不是小瑕疵</h3>
+<p>ATLAS 上完整 UniSim 的 VAL-CA 为
+<code>0.079</code>。这表示结构有效性仍然是大蛋白生成的主要瓶颈。论文也在
+Future Work 中指出 cumulative prediction errors
+会让构象有效性不完全可靠，尤其是 macromolecules。</p>
+<h3 id="openmm-refinement-是结果的一部分">13.4 OpenMM refinement
+是结果的一部分</h3>
+<p>蛋白/肽推理默认会在每个 iteration 后做 constrained energy
+minimization。换句话说，最终 trajectory
+不是纯神经网络一步到位的结果，而是 neural SDE generation + local
+physical refinement 的组合。比较其他方法或做 ablation
+时，需要把这一点说清楚。</p>
+<h3 id="势能归一化会影响跨体系解释">13.5 势能归一化会影响跨体系解释</h3>
+<p>补充材料 C.1 把每个 molecular system 的 potential labels 归一到
+<code>[−1, 0]</code>，目的是训练稳定。这对模型学习很实用，但也意味着势能数值的绝对尺度不再直接可比。学习者不应把
+<code>pot0/pot1</code> 当作跨体系统一物理能量来解释。</p>
+<h2 id="与相关方法的关系">14. 与相关方法的关系</h2>
+<h3 id="与-fbm">14.1 与 FBM</h3>
+<p>FBM 是 UniSim 的重要前驱。UniSim 继承了 bridge matching / force
+guidance 的思想，但把目标从 peptide 单域扩展到 small
+molecule、peptide、protein 的跨域统一。可以把 UniSim 看作：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">FBM 的 force-guided time-coarsened dynamics</span><br><span class="line">+ 多域原子表征预训练</span><br><span class="line">+ 子图处理大体系</span><br><span class="line">+ atomic embedding expansion</span><br><span class="line">+ 跨环境多头 force/denoise 训练</span><br></pre></td></tr></table></figure>
+<h3 id="与-timewarp">14.2 与 Timewarp</h3>
+<p>Timewarp 使用 augmented normalizing flow 和 MCMC 技术，主要展示小
+peptide 系统上的可迁移动力学。UniSim 相比它更强调全原子跨域表征和 force
+guidance。论文在 ATLAS 上没有使用 Timewarp 对比，因为 ATLAS 没有
+Timewarp 训练需要的 atomic velocities。</p>
+<h3 id="与-ito-score-dynamics">14.3 与 ITO / Score Dynamics</h3>
+<p>ITO 和 Score Dynamics 属于 diffusion/score-based 或 time-resolution
+条件生成路线。UniSim 与它们的关键差别是：</p>
+<ul>
+<li>用 stochastic interpolant 明确学习两端构象间的桥。</li>
+<li>用统一预训练 encoder 解决跨域迁移。</li>
+<li>用 force guidance kernel 做环境适配。</li>
+</ul>
+<h3 id="与-3d-molecular-pretraining">14.4 与 3D molecular
+pretraining</h3>
+<p>ET-OREO、EPT、DPA-2 等工作都和 UniSim 的预训练部分相关。UniSim
+的特别之处是预训练不是最终任务，而是为 time-coarsened dynamics
+服务；它不仅关心静态构象表征，还关心后续 trajectory transition
+的可迁移性。</p>
+<h2 id="批判性阅读这篇论文证明了什么没证明什么">15.
+批判性阅读：这篇论文证明了什么，没证明什么</h2>
+<p>比较稳妥地说，UniSim 证明了：</p>
+<ul>
+<li>多域原子表征预训练能改善 peptide time-coarsened dynamics
+的分布指标和结构指标。</li>
+<li>force guidance 能在特定环境适配中提升物理有效性，尤其在 PepMD 和
+MD22 迁移实验中较明显。</li>
+<li>在 ATLAS 蛋白上，统一表征 + force guidance 可以优于若干 deep
+learning baselines 的分布指标。</li>
+<li>对 AD 这类经典小体系，模型能生成覆盖主要 metastable states 的长
+trajectory。</li>
+<li>在 PepMD 上，ESS/s 指标显示出显著采样效率优势。</li>
+</ul>
+<p>但它没有完全证明：</p>
+<ul>
+<li>大蛋白生成已经达到可替代高质量生产 MD 的可靠性。</li>
+<li>长时间尺度下误差不会持续累积。</li>
+<li>所有 chemical environments 都能通过轻量 force guidance
+充分适配。</li>
+<li>归一化势能下学到的 guidance 可以无缝迁移到绝对能量解释任务。</li>
+<li>不依赖 OpenMM refinement 时，蛋白/肽生成同样稳定。</li>
+</ul>
+<p>更准确的定位是：UniSim 是一个跨域全原子 time-coarsened dynamics
+的强力研究原型，展示了统一预训练和 force guidance
+的潜力；它离工程化、长时稳定、可广泛替代 MD 还有明显距离。</p>
+<h2 id="可能的研究延伸">16. 可能的研究延伸</h2>
+<ol type="1">
+<li>更强的长程误差控制：当前自回归推理会累积预测误差，可以研究 global
+correction、trajectory-level consistency loss 或 path-space
+regularization。</li>
+<li>减少对 OpenMM refinement 的依赖：如果 refinement
+是主要稳定来源之一，那么 neural model 本体的结构有效性还可提升。</li>
+<li>更细粒度的 chemical environment conditioning：当前通过多头和
+guidance 适配不同环境，可以进一步显式加入
+solvent、temperature、pH、force field 参数等条件。</li>
+<li>蛋白大体系的有效性指标优化：ATLAS 上 VAL-CA 绝对值低，说明可以针对
+bond/angle/clash 设计更直接的约束。</li>
+<li>更长 trajectory 的评估：论文承认较短生成轨迹可能限制 metastable
+states 发现，后续可用更长链、更多 seed 和更严格 kinetic metrics。</li>
+<li>与增强采样或 Markov state model 结合：UniSim 生成候选
+transition，再由传统方法校正或重加权，可能比单独使用任一方法更稳。</li>
+<li>数据集污染与 split
+更严格控制：跨域预训练很强，但也需要更严格评估序列相似性、结构相似性和环境相似性带来的隐性泄漏。</li>
+</ol>
+<h2 id="学习者自测问题">17. 学习者自测问题</h2>
+<ol type="1">
+<li>为什么 UniSim 不直接在所有数据上训练一个单头 force model？</li>
+<li><code>gradient subgraph</code> 和 <code>environment subgraph</code>
+分别解决什么问题？</li>
+<li><code>atomic embedding expansion</code> 为什么对蛋白尤其重要？</li>
+<li>在 stochastic interpolant 中，<code>velocity</code> 和
+<code>denoiser</code> 分别学什么？</li>
+<li><code>GeomBM.sde</code> 和 <code>GeomFBM.sde</code> 的 drift
+有什么差异？</li>
+<li><code>guidance</code>
+增大时，为什么结构有效性可能提升但分布探索可能变差？</li>
+<li>为什么 <code>T</code> 增大不一定提升结果？</li>
+<li><code>UniSim/p</code>, <code>UniSim/g</code>, <code>UniSim</code>
+三者分别缺少或包含哪些模块？</li>
+<li>为什么 ATLAS 上 VAL-CA 很低但论文仍认为 UniSim 有潜力？</li>
+<li>如果你要复现完整 UniSim，为什么必须先检查
+<code>train_fbm.yaml</code>？</li>
+</ol>
+<h2 id="一页速记">18. 一页速记</h2>
+<p>UniSim 的核心问题：用大时间步生成接近 MD
+分布的全原子分子轨迹，并让方法能跨 small molecule、peptide、protein
+迁移。</p>
+<p>核心结构：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">EnergyKernel 预训练表征</span><br><span class="line">    -&gt; GeomBM 学 stochastic interpolant bridge</span><br><span class="line">        -&gt; GeomFBM 学 force guidance</span><br><span class="line">            -&gt; SDE 自回归推理</span><br><span class="line">                -&gt; 蛋白/肽 OpenMM refinement</span><br></pre></td></tr></table></figure>
+<p>核心公式：</p>
+<p><span class="math display">\[
+X_s = (1-s)X_0 + sX_1 + \sqrt{s(1-s)}\sigma Z
+\]</span></p>
+<p>核心训练信号：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">EnergyKernel: force / denoise</span><br><span class="line">GeomBM: velocity = X1 - X0, denoiser = Z</span><br><span class="line">GeomFBM: endpoint force boundary + intermediate force field</span><br></pre></td></tr></table></figure>
+<p>核心结果：</p>
+<ul>
+<li>PepMD：完整 UniSim 在 PWD/Rg/TIC-2D/VAL-CA/CONTACT
+等多数指标上领先或接近最好。</li>
+<li>MD22：force guidance 让 TIC/TIC-2D JS 从 <code>0.408/0.791</code>
+改善到 <code>0.368/0.765</code>。</li>
+<li>ATLAS：分布指标和 VAL-CA 优于 baselines，但 VAL-CA 绝对值仍低。</li>
+<li>AD：能覆盖多个经典 metastable states。</li>
+<li>效率：PepMD 上 ESS/s 平均约 <code>25x</code> OpenMM MD。</li>
+</ul>
+<p>最重要的复现提醒：</p>
+<ul>
+<li><code>encoder</code> 对应预训练 <code>EnergyKernel</code>。</li>
+<li><code>baseline</code> 对应训练好的 <code>GeomBM</code>。</li>
+<li>当前仓库 <code>train_fbm.yaml</code> 疑似未正确配置为 FBM。</li>
+<li>蛋白/肽默认推理包含 OpenMM refinement。</li>
+<li>结果应按 ensemble distribution 而不是逐帧坐标误差来评价。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://do7math.github.io">Du Wei</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/">https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/UniSim/">UniSim</a><a class="post-meta__tags" href="/tags/world-model/">world model</a><a class="post-meta__tags" href="/tags/molecular-dynamics/">molecular dynamics</a><a class="post-meta__tags" href="/tags/biomolecule/">biomolecule</a></div><div class="post-share"><div class="social-share" data-image="/img/%E5%A4%B4%E5%83%8F.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/" title="FrameDiff / SE(3) Diffusion 模型结构学习报告"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">FrameDiff / SE(3) Diffusion 模型结构学习报告</div></div><div class="info-2"><div class="info-item-1">本文整理自 Immortals-33/Framediff 的 README 与关键源码，并结合论文《SE(3) diffusion model with application to protein backbone generation》。目标是帮助你从“数据如何进入模型”一路理解到“每个网络模块如何更新残基 frame、如何训练、如何采样”。 参考来源：  项目 README: https://github.com/Immortals-33/Framediff/blob/master/README.md 论文页面: https://proceedings.mlr.press/v202/yim23a.html 论文 HTML: https://ar5iv.labs.arxiv.org/html/2302.02277 model/score_network.py: https://github.com/Immortals-33/Framediff/blob/master/model/score_network.py model/ipa_pytorch.py: https://gi...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/%E5%A4%B4%E5%83%8F.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Du Wei</div><div class="author-info-description">面朝大海，春暖花开</div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">9</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%B5%84%E6%96%99%E5%AE%9A%E4%BD%8D"><span class="toc-number">1.</span> <span class="toc-text">0. 资料定位</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%88%E5%BB%BA%E7%AB%8B%E9%97%AE%E9%A2%98%E7%9B%B4%E8%A7%89"><span class="toc-number">2.</span> <span class="toc-text">1. 先建立问题直觉</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#unisim-%E8%A7%A3%E5%86%B3%E7%9A%84%E6%A0%B8%E5%BF%83%E7%9F%9B%E7%9B%BE"><span class="toc-number">3.</span> <span class="toc-text">2. UniSim 解决的核心矛盾</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-number">4.</span> <span class="toc-text">3. 总体架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E5%AD%A6%E8%AE%BE%E5%AE%9A"><span class="toc-number">5.</span> <span class="toc-text">4. 数学设定</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%86%E5%AD%90%E6%95%B0%E6%8D%AE%E9%9B%86%E4%B8%8E%E7%9B%AE%E6%A0%87"><span class="toc-number">5.1.</span> <span class="toc-text">4.1 分子、数据集与目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%9F%E4%B8%80%E9%A2%84%E8%AE%AD%E7%BB%83%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%9B%B4%E6%8E%A5%E6%B7%B7%E6%89%80%E6%9C%89%E6%95%B0%E6%8D%AE"><span class="toc-number">5.2.</span> <span class="toc-text">4.2
+统一预训练：为什么不直接混所有数据</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%9A%E5%A4%B4%E9%A2%84%E8%AE%AD%E7%BB%83%E7%9B%AE%E6%A0%87"><span class="toc-number">5.3.</span> <span class="toc-text">4.3 多头预训练目标</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#stochastic-interpolant%E4%BB%8E%E4%B8%A4%E7%AB%AF%E6%9E%84%E8%B1%A1%E5%AD%A6%E4%B9%A0%E4%B8%80%E5%BA%A7%E6%A1%A5"><span class="toc-number">5.4.</span> <span class="toc-text">4.4 stochastic
+interpolant：从两端构象学习一座桥</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#force-guidance%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%98%E8%A6%81%E5%86%8D%E8%AE%AD%E7%BB%83%E4%B8%80%E4%B8%AA-kernel"><span class="toc-number">5.5.</span> <span class="toc-text">4.5 force
+guidance：为什么还要再训练一个 kernel</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E9%9B%86%E4%B8%8E%E6%97%B6%E9%97%B4%E5%B0%BA%E5%BA%A6"><span class="toc-number">6.</span> <span class="toc-text">5. 数据集与时间尺度</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E6%B5%81%E7%A8%8B%E4%BB%8E-readme-%E5%88%B0%E6%BA%90%E7%A0%81"><span class="toc-number">7.</span> <span class="toc-text">6. 训练流程：从 README 到源码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%8E%AF%E5%A2%83%E9%85%8D%E7%BD%AE"><span class="toc-number">7.1.</span> <span class="toc-text">6.1 环境配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%87%86%E5%A4%87"><span class="toc-number">7.2.</span> <span class="toc-text">6.2 数据准备</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E9%98%B6%E6%AE%B5%E9%A2%84%E8%AE%AD%E7%BB%83-energykernel"><span class="toc-number">7.3.</span> <span class="toc-text">6.3 第一阶段：预训练
+EnergyKernel</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%BA%8C%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83-vector-field-model"><span class="toc-number">7.4.</span> <span class="toc-text">6.4 第二阶段：训练 vector field
+model</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83-force-guidance-kernel"><span class="toc-number">7.5.</span> <span class="toc-text">6.5 第三阶段：训练 force
+guidance kernel</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8E%A8%E7%90%86%E6%B5%81%E7%A8%8B"><span class="toc-number">8.</span> <span class="toc-text">7. 推理流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%9B%8B%E7%99%BD%E8%82%BD%E6%8E%A8%E7%90%86"><span class="toc-number">8.1.</span> <span class="toc-text">7.1 蛋白&#x2F;肽推理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%8F%E5%88%86%E5%AD%90%E6%8E%A8%E7%90%86"><span class="toc-number">8.2.</span> <span class="toc-text">7.2 小分子推理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AF%84%E4%BC%B0%E6%8C%87%E6%A0%87%E6%80%8E%E4%B9%88%E8%AF%BB"><span class="toc-number">9.</span> <span class="toc-text">8. 评估指标怎么读</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%BA%E6%96%87%E7%BB%93%E6%9E%9C%E8%A7%A3%E8%AF%BB"><span class="toc-number">10.</span> <span class="toc-text">9. 论文结果解读</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#pepmd-peptide"><span class="toc-number">10.1.</span> <span class="toc-text">9.1 PepMD peptide</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#md22-small-molecule-transfer"><span class="toc-number">10.2.</span> <span class="toc-text">9.2 MD22 small molecule
+transfer</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#atlas-protein"><span class="toc-number">10.3.</span> <span class="toc-text">9.3 ATLAS protein</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#alanine-dipeptide-case-study"><span class="toc-number">10.4.</span> <span class="toc-text">9.4 Alanine dipeptide case
+study</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%88%E7%8E%87"><span class="toc-number">10.5.</span> <span class="toc-text">9.5 效率</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%87%8D%E8%A6%81%E6%B6%88%E8%9E%8D%E7%BB%93%E8%AE%BA"><span class="toc-number">11.</span> <span class="toc-text">10. 重要消融结论</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#guidance-strength-%E4%B8%8E-sde-steps"><span class="toc-number">11.1.</span> <span class="toc-text">10.1 guidance strength 与 SDE
+steps</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#atomic-embedding-expansion"><span class="toc-number">11.2.</span> <span class="toc-text">10.2 atomic embedding expansion</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8E%E4%BB%A3%E7%A0%81%E8%A7%92%E5%BA%A6%E9%87%8D%E6%96%B0%E7%90%86%E8%A7%A3-unisim"><span class="toc-number">12.</span> <span class="toc-text">11. 从代码角度重新理解 UniSim</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#train.py-%E6%98%AF%E4%B8%89%E9%98%B6%E6%AE%B5%E8%AE%AD%E7%BB%83%E5%88%86%E5%8F%91%E5%99%A8"><span class="toc-number">12.1.</span> <span class="toc-text">11.1 train.py
+是三阶段训练分发器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#energykernel-%E7%9A%84-force-%E6%98%AF-energy-gradient"><span class="toc-number">12.2.</span> <span class="toc-text">11.2
+EnergyKernel 的 force 是 energy gradient</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#geombm-%E7%9A%84%E8%AE%AD%E7%BB%83%E6%A0%87%E7%AD%BE%E5%85%B6%E5%AE%9E%E5%BE%88%E7%AE%80%E5%8D%95"><span class="toc-number">12.3.</span> <span class="toc-text">11.3 GeomBM
+的训练标签其实很简单</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#geomfbm-%E6%98%AF%E5%86%BB%E7%BB%93%E4%B8%BB%E6%A8%A1%E5%9E%8B%E5%90%8E%E7%9A%84%E7%89%A9%E7%90%86%E4%BF%AE%E6%AD%A3%E5%99%A8"><span class="toc-number">12.4.</span> <span class="toc-text">11.4 GeomFBM
+是冻结主模型后的物理修正器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9E%84%E5%9B%BE%E9%80%BB%E8%BE%91%E6%9C%89-domain-%E5%81%87%E8%AE%BE"><span class="toc-number">12.5.</span> <span class="toc-text">11.5 构图逻辑有 domain 假设</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%A4%8D%E7%8E%B0%E5%AE%9E%E6%93%8D%E8%B7%AF%E7%BA%BF"><span class="toc-number">13.</span> <span class="toc-text">12. 复现实操路线</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9C%80%E5%B0%8F%E9%98%85%E8%AF%BB%E9%A1%BA%E5%BA%8F"><span class="toc-number">13.1.</span> <span class="toc-text">12.1 最小阅读顺序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%A8%E8%8D%90%E7%9A%84%E8%B7%91%E9%80%9A%E9%A1%BA%E5%BA%8F"><span class="toc-number">13.2.</span> <span class="toc-text">12.2 推荐的跑通顺序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E6%97%B6%E7%9A%84%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="toc-number">13.3.</span> <span class="toc-text">12.3 训练时的检查清单</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%98%93%E9%94%99%E7%82%B9%E4%B8%8E%E4%BB%A3%E7%A0%81%E7%96%91%E7%82%B9"><span class="toc-number">14.</span> <span class="toc-text">13. 易错点与代码疑点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#configtrain_fbm.yaml-%E5%BD%93%E5%89%8D%E7%96%91%E4%BC%BC%E4%B8%8D%E6%98%AF-fbm-%E9%85%8D%E7%BD%AE"><span class="toc-number">14.1.</span> <span class="toc-text">13.1
+config&#x2F;train_fbm.yaml 当前疑似不是 FBM 配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#readme-%E4%B8%AD-bmfbm-%E7%9A%84%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E%E6%AF%94%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E6%9B%B4%E5%8F%AF%E9%9D%A0"><span class="toc-number">14.2.</span> <span class="toc-text">13.2 README 中
+BM&#x2F;FBM 的配置说明比配置文件更可靠</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#val-ca-%E4%B8%8D%E6%98%AF%E5%B0%8F%E7%91%95%E7%96%B5"><span class="toc-number">14.3.</span> <span class="toc-text">13.3 VAL-CA 不是小瑕疵</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#openmm-refinement-%E6%98%AF%E7%BB%93%E6%9E%9C%E7%9A%84%E4%B8%80%E9%83%A8%E5%88%86"><span class="toc-number">14.4.</span> <span class="toc-text">13.4 OpenMM refinement
+是结果的一部分</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8A%BF%E8%83%BD%E5%BD%92%E4%B8%80%E5%8C%96%E4%BC%9A%E5%BD%B1%E5%93%8D%E8%B7%A8%E4%BD%93%E7%B3%BB%E8%A7%A3%E9%87%8A"><span class="toc-number">14.5.</span> <span class="toc-text">13.5 势能归一化会影响跨体系解释</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%8E%E7%9B%B8%E5%85%B3%E6%96%B9%E6%B3%95%E7%9A%84%E5%85%B3%E7%B3%BB"><span class="toc-number">15.</span> <span class="toc-text">14. 与相关方法的关系</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-fbm"><span class="toc-number">15.1.</span> <span class="toc-text">14.1 与 FBM</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-timewarp"><span class="toc-number">15.2.</span> <span class="toc-text">14.2 与 Timewarp</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-ito-score-dynamics"><span class="toc-number">15.3.</span> <span class="toc-text">14.3 与 ITO &#x2F; Score Dynamics</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%8E-3d-molecular-pretraining"><span class="toc-number">15.4.</span> <span class="toc-text">14.4 与 3D molecular
+pretraining</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%89%B9%E5%88%A4%E6%80%A7%E9%98%85%E8%AF%BB%E8%BF%99%E7%AF%87%E8%AE%BA%E6%96%87%E8%AF%81%E6%98%8E%E4%BA%86%E4%BB%80%E4%B9%88%E6%B2%A1%E8%AF%81%E6%98%8E%E4%BB%80%E4%B9%88"><span class="toc-number">16.</span> <span class="toc-text">15.
+批判性阅读：这篇论文证明了什么，没证明什么</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%AF%E8%83%BD%E7%9A%84%E7%A0%94%E7%A9%B6%E5%BB%B6%E4%BC%B8"><span class="toc-number">17.</span> <span class="toc-text">16. 可能的研究延伸</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%AD%A6%E4%B9%A0%E8%80%85%E8%87%AA%E6%B5%8B%E9%97%AE%E9%A2%98"><span class="toc-number">18.</span> <span class="toc-text">17. 学习者自测问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E9%A1%B5%E9%80%9F%E8%AE%B0"><span class="toc-number">19.</span> <span class="toc-text">18. 一页速记</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/" title="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</a><time datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/" title="FrameDiff / SE(3) Diffusion 模型结构学习报告">FrameDiff / SE(3) Diffusion 模型结构学习报告</a><time datetime="2026-08-28T00:54:25.000Z" title="Created 2026-08-28 08:54:25">2026-08-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/31/hello-world/" title="Hello World">Hello World</a><time datetime="2026-03-30T16:20:12.867Z" title="Created 2026-03-31 00:20:12">2026-03-31</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/01/23/DDPM/" title="DDPM">DDPM</a><time datetime="2026-01-23T08:39:20.000Z" title="Created 2026-01-23 16:39:20">2026-01-23</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/01/20/%E5%BE%AE%E5%88%86%E6%B5%81%E5%BD%A2-%E4%B8%80/" title="微分流形(一)">微分流形(一)</a><time datetime="2026-01-20T08:51:06.000Z" title="Created 2026-01-20 16:51:06">2026-01-20</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By Du Wei</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

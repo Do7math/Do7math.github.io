@@ -1,0 +1,706 @@
+<!DOCTYPE html><html lang="zh=CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>FrameDiff / SE(3) Diffusion 模型结构学习报告 | Du Wei</title><meta name="author" content="Du Wei"><meta name="copyright" content="Du Wei"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="本文整理自 Immortals-33&#x2F;Framediff 的 README 与关键源码，并结合论文《SE(3) diffusion model with application to protein backbone generation》。目标是帮助你从“数据如何进入模型”一路理解到“每个网络模块如何更新残基 frame、如何训练、如何采样”。 参考来源：  项目 README: https:&#x2F;">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FrameDiff &#x2F; SE(3) Diffusion 模型结构学习报告">
+<meta property="og:url" content="https://do7math.github.io/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/index.html">
+<meta property="og:site_name" content="Du Wei">
+<meta property="og:description" content="本文整理自 Immortals-33&#x2F;Framediff 的 README 与关键源码，并结合论文《SE(3) diffusion model with application to protein backbone generation》。目标是帮助你从“数据如何进入模型”一路理解到“每个网络模块如何更新残基 frame、如何训练、如何采样”。 参考来源：  项目 README: https:&#x2F;">
+<meta property="og:locale">
+<meta property="og:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg">
+<meta property="article:published_time" content="2026-08-28T00:54:25.000Z">
+<meta property="article:modified_time" content="2026-08-28T00:54:46.679Z">
+<meta property="article:author" content="Du Wei">
+<meta property="article:tag" content="FrameDiff">
+<meta property="article:tag" content="SE(3)">
+<meta property="article:tag" content="diffusion">
+<meta property="article:tag" content="protein">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FrameDiff / SE(3) Diffusion 模型结构学习报告",
+  "url": "https://do7math.github.io/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/",
+  "image": "https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg",
+  "datePublished": "2026-08-28T00:54:25.000Z",
+  "dateModified": "2026-08-28T00:54:46.679Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Du Wei",
+      "url": "https://do7math.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://do7math.github.io/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'FrameDiff / SE(3) Diffusion 模型结构学习报告',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Du Wei</span></a><a class="nav-page-title" href="/"><span class="site-name">FrameDiff / SE(3) Diffusion 模型结构学习报告</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">FrameDiff / SE(3) Diffusion 模型结构学习报告</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-08-28T00:54:25.000Z" title="Created 2026-08-28 08:54:25">2026-08-28</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-08-28T00:54:46.679Z" title="Updated 2026-08-28 08:54:46">2026-08-28</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><p>本文整理自 Immortals-33/Framediff 的 README
+与关键源码，并结合论文《SE(3) diffusion model with application to
+protein backbone
+generation》。目标是帮助你从“数据如何进入模型”一路理解到“每个网络模块如何更新残基
+frame、如何训练、如何采样”。</p>
+<p>参考来源：</p>
+<ul>
+<li>项目 README:
+https://github.com/Immortals-33/Framediff/blob/master/README.md</li>
+<li>论文页面: https://proceedings.mlr.press/v202/yim23a.html</li>
+<li>论文 HTML: https://ar5iv.labs.arxiv.org/html/2302.02277</li>
+<li><code>model/score_network.py</code>:
+https://github.com/Immortals-33/Framediff/blob/master/model/score_network.py</li>
+<li><code>model/ipa_pytorch.py</code>:
+https://github.com/Immortals-33/Framediff/blob/master/model/ipa_pytorch.py</li>
+<li><code>data/se3_diffuser.py</code>:
+https://github.com/Immortals-33/Framediff/blob/master/data/se3_diffuser.py</li>
+<li><code>data/r3_diffuser.py</code>:
+https://github.com/Immortals-33/Framediff/blob/master/data/r3_diffuser.py</li>
+<li><code>data/so3_diffuser.py</code>:
+https://github.com/Immortals-33/Framediff/blob/master/data/so3_diffuser.py</li>
+<li><code>config/base.yaml</code>:
+https://github.com/Immortals-33/Framediff/blob/master/config/base.yaml</li>
+</ul>
+<h2 id="模型一句话概括">1. 模型一句话概括</h2>
+<p>FrameDiff 是一个用于蛋白质 backbone 生成的 SE(3)
+扩散模型。它不直接在所有原子坐标上做普通欧氏扩散，而是把每个残基表示成一个刚体
+frame：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">T_i = (R_i, x_i)</span><br><span class="line">R_i: 第 i 个残基的局部旋转坐标系，属于 SO(3)</span><br><span class="line">x_i: 第 i 个残基的平移位置，通常对应 C-alpha 坐标，属于 R^3</span><br></pre></td></tr></table></figure>
+<p>一个长度为 N 的蛋白 backbone 就是 N 个残基 frame 的序列：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T = (T_1, T_2, ..., T_N) in SE(3)^N</span><br></pre></td></tr></table></figure>
+<p>扩散过程负责把真实 backbone frame 加噪成随机
+frame；神经网络负责从带噪 frame 中预测去噪方向，也就是旋转 score 和平移
+score；最后再用预测 frame 和 psi 扭转角重建 N、CA、C、O 等 backbone
+原子坐标。</p>
+<h2 id="整体流水线">2. 整体流水线</h2>
+<p>模型可以按下面的流程理解：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">真实 PDB/mmCIF</span><br><span class="line">  -&gt; 提取每个残基的 backbone atom: N, CA, C, O</span><br><span class="line">  -&gt; 用 N-CA-C 构造每个残基的刚体 frame T_0</span><br><span class="line">  -&gt; 采样时间 t in [min_t, 1]</span><br><span class="line">  -&gt; 前向扩散得到带噪 frame T_t</span><br><span class="line">  -&gt; 构造 node/edge embedding</span><br><span class="line">  -&gt; IpaScore / FramePred 主干网络迭代更新 frame</span><br><span class="line">  -&gt; 输出 final_rigids、rot_score、trans_score、psi</span><br><span class="line">  -&gt; compute_backbone 重建 atom37 / atom14 backbone 坐标</span><br><span class="line">  -&gt; 用 score loss 与 backbone auxiliary loss 训练</span><br></pre></td></tr></table></figure>
+<p>代码中对应最外层入口是
+<code>ScoreNetwork.forward(input_feats)</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">input_feats</span><br><span class="line">  -&gt; Embedder</span><br><span class="line">  -&gt; IpaScore</span><br><span class="line">  -&gt; TorsionAngles / compute_backbone</span><br><span class="line">  -&gt; pred_out</span><br></pre></td></tr></table></figure>
+<h2 id="数据表示为什么是-frame-而不是直接坐标">3. 数据表示：为什么是
+frame 而不是直接坐标</h2>
+<h3 id="残基-frame">3.1 残基 frame</h3>
+<p>每个残基 backbone 的核心原子是 N、CA、C。OpenFold/AlphaFold
+风格的表示会用这三个点确定一个局部坐标系：</p>
+<ul>
+<li>原点常与 CA 位置相关；</li>
+<li>N、CA、C 的几何关系确定局部 x/y/z 方向；</li>
+<li>O 原子不能只靠 N、CA、C 完全确定，因此模型额外预测 <code>psi</code>
+扭转角。</li>
+</ul>
+<p>在代码里，训练数据通过 OpenFold transforms 生成
+<code>rigidgroups_0</code>，随后取第 0 个 rigid group 作为 backbone
+frame：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">gt_bb_rigid = Rigid.from_tensor_4x4(chain_feats[&quot;rigidgroups_0&quot;])[:, 0]</span><br><span class="line">rigids_0 = gt_bb_rigid.to_tensor_7()</span><br></pre></td></tr></table></figure>
+<p><code>to_tensor_7()</code> 表示一个 rigid frame 被编码为 7 维，通常是
+quaternion 4 维加 translation 3 维：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rigids[..., :4]  -&gt; rotation quaternion</span><br><span class="line">rigids[..., 4:]  -&gt; translation / CA-like position</span><br></pre></td></tr></table></figure>
+<h3 id="节点边与-mask">3.2 节点、边与 mask</h3>
+<p>一个蛋白被模型看成残基图：</p>
+<ul>
+<li>node: 单个残基，形状大致为 <code>[B, N, D_node]</code></li>
+<li>edge: 残基对 <code>(i, j)</code>，形状大致为
+<code>[B, N, N, D_edge]</code></li>
+<li><code>res_mask</code>: 哪些位置是真实残基，哪些是 padding</li>
+<li><code>fixed_mask</code>: 哪些位置固定不扩散；无条件生成中通常全
+0</li>
+<li><code>diffuse_mask = (1 - fixed_mask) * res_mask</code>:
+哪些残基参与扩散和更新</li>
+</ul>
+<h2 id="前向扩散se3-被拆成-r3-和-so3">4. 前向扩散：SE(3) 被拆成 R^3 和
+SO(3)</h2>
+<p><code>SE3Diffuser</code> 是扩散器总控。它把一个 frame
+分成两部分：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">translation x in R^3</span><br><span class="line">rotation R in SO(3)</span><br></pre></td></tr></table></figure>
+<p>然后分别调用：</p>
+<ul>
+<li><code>R3Diffuser</code>: 处理平移；</li>
+<li><code>SO3Diffuser</code>: 处理旋转；</li>
+<li>最后重新组装成 <code>Rigid</code>。</li>
+</ul>
+<h3 id="平移扩散-r3diffuser">4.1 平移扩散 R3Diffuser</h3>
+<p>平移部分使用 VP-SDE 风格的高斯扩散。配置中默认：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">r3:</span></span><br><span class="line">  <span class="attr">min_b:</span> <span class="number">0.1</span></span><br><span class="line">  <span class="attr">max_b:</span> <span class="number">20.0</span></span><br><span class="line">  <span class="attr">coordinate_scaling:</span> <span class="number">0.1</span></span><br></pre></td></tr></table></figure>
+<p>主要公式对应代码逻辑：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">beta(t) = min_b + t * (max_b - min_b)</span><br><span class="line">B(t) = t * min_b + 0.5 * t^2 * (max_b - min_b)</span><br><span class="line"></span><br><span class="line">x_t ~ Normal(</span><br><span class="line">  exp(-0.5 * B(t)) * x_0,</span><br><span class="line">  1 - exp(-B(t))</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">score(x_t, x_0, t)</span><br><span class="line">  = -(x_t - exp(-0.5 * B(t)) * x_0) / (1 - exp(-B(t)))</span><br></pre></td></tr></table></figure>
+<p>注意
+<code>coordinate_scaling=0.1</code>：代码会先把坐标缩放后扩散，避免蛋白坐标的
+Å 尺度过大。</p>
+<h3 id="旋转扩散-so3diffuser">4.2 旋转扩散 SO3Diffuser</h3>
+<p>旋转部分不能直接当作普通三维向量处理，因为旋转属于流形
+<code>SO(3)</code>。代码使用 IGSO(3) 分布近似 SO(3) 上的 Brownian
+motion：</p>
+<ul>
+<li>先预计算不同噪声尺度下的 IGSO(3) PDF、CDF 和 score norm；</li>
+<li>用轴角向量表示旋转扰动；</li>
+<li>前向扩散时采样旋转扰动，再与原始旋转右乘组合；</li>
+<li>score 由查表和插值得到。</li>
+</ul>
+<p>配置中默认：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">so3:</span></span><br><span class="line">  <span class="attr">num_omega:</span> <span class="number">1000</span></span><br><span class="line">  <span class="attr">num_sigma:</span> <span class="number">1000</span></span><br><span class="line">  <span class="attr">min_sigma:</span> <span class="number">0.1</span></span><br><span class="line">  <span class="attr">max_sigma:</span> <span class="number">1.5</span></span><br><span class="line">  <span class="attr">schedule:</span> <span class="string">logarithmic</span></span><br></pre></td></tr></table></figure>
+<p>可以把它理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">R_t = R_0 composed with noise_on_SO3(t)</span><br><span class="line">rot_score = gradient log p(R_t | R_0)</span><br></pre></td></tr></table></figure>
+<h2 id="输入特征与-embedder">5. 输入特征与 Embedder</h2>
+<p>主网络不是直接拿 <code>rigids_t</code> 做 MLP。它先构造残基级 node
+embedding 和残基对 edge embedding。</p>
+<p>代码位置：<code>model/score_network.py -&gt; class Embedder</code>。</p>
+<h3 id="输入字段">5.1 输入字段</h3>
+<p><code>Embedder.forward</code> 主要使用：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">seq_idx: 每个残基的序列位置</span><br><span class="line">t: 当前扩散时间</span><br><span class="line">fixed_mask: 固定残基标记</span><br><span class="line">self_conditioning_ca: 上一次预测的 CA 坐标，用于 self-conditioning</span><br></pre></td></tr></table></figure>
+<h3 id="node-embedding">5.2 node embedding</h3>
+<p>node 特征由三类信息拼接：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">node_feats =</span><br><span class="line">  timestep_embedding(t)</span><br><span class="line">  + fixed_mask</span><br><span class="line">  + index_embedding(seq_idx)</span><br></pre></td></tr></table></figure>
+<p>默认 <code>index_embed_size=32</code>。因此每个残基知道：</p>
+<ul>
+<li>当前处在扩散过程的哪个时间；</li>
+<li>自己是否固定；</li>
+<li>自己在序列中的位置。</li>
+</ul>
+<p>拼接后通过 3 层 Linear + ReLU + LayerNorm 得到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">node_embed: [B, N, 256]</span><br></pre></td></tr></table></figure>
+<h3 id="edge-embedding">5.3 edge embedding</h3>
+<p>edge 特征由残基对信息拼接：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">edge_feats =</span><br><span class="line">  cross_concat(timestep_embedding(t), fixed_mask)</span><br><span class="line">  + index_embedding(seq_idx_i - seq_idx_j)</span><br><span class="line">  + self_conditioning_distogram(optional)</span><br></pre></td></tr></table></figure>
+<p>其中 self-conditioning distogram 是根据
+<code>self_conditioning_ca</code> 的 CA-CA 距离分桶得到。默认开启：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">embed_self_conditioning:</span> <span class="literal">True</span></span><br><span class="line"><span class="attr">num_bins:</span> <span class="number">22</span></span><br><span class="line"><span class="attr">min_bin:</span> <span class="number">1e-5</span></span><br><span class="line"><span class="attr">max_bin:</span> <span class="number">20.0</span></span><br></pre></td></tr></table></figure>
+<p>拼接后通过 3 层 Linear + ReLU + LayerNorm 得到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">edge_embed: [B, N, N, 128]</span><br></pre></td></tr></table></figure>
+<h2 id="主干网络ipascore-framepred">6. 主干网络：IpaScore /
+FramePred</h2>
+<p>论文中去噪网络叫
+<code>FramePred</code>。这个仓库代码中的主要实现类是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">model/ipa_pytorch.py -&gt; class IpaScore</span><br></pre></td></tr></table></figure>
+<p>它的核心思想来自 AlphaFold2 Structure
+Module：在每一层中，网络同时维护并更新：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">node_embed: 每个残基的单体表示 h_i</span><br><span class="line">edge_embed: 每对残基的 pair 表示 z_ij</span><br><span class="line">curr_rigids: 当前预测的每个残基 frame T_i</span><br></pre></td></tr></table></figure>
+<p>默认有 4 个 block：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">ipa:</span></span><br><span class="line">  <span class="attr">c_s:</span> <span class="number">256</span></span><br><span class="line">  <span class="attr">c_z:</span> <span class="number">128</span></span><br><span class="line">  <span class="attr">c_hidden:</span> <span class="number">256</span></span><br><span class="line">  <span class="attr">c_skip:</span> <span class="number">64</span></span><br><span class="line">  <span class="attr">no_heads:</span> <span class="number">8</span></span><br><span class="line">  <span class="attr">no_qk_points:</span> <span class="number">8</span></span><br><span class="line">  <span class="attr">no_v_points:</span> <span class="number">12</span></span><br><span class="line">  <span class="attr">seq_tfmr_num_heads:</span> <span class="number">4</span></span><br><span class="line">  <span class="attr">seq_tfmr_num_layers:</span> <span class="number">2</span></span><br><span class="line">  <span class="attr">num_blocks:</span> <span class="number">4</span></span><br></pre></td></tr></table></figure>
+<p>每个 block 的结构可以写成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">node_embed, edge_embed, curr_rigids</span><br><span class="line">  -&gt; InvariantPointAttention</span><br><span class="line">  -&gt; residual + LayerNorm</span><br><span class="line">  -&gt; concat(skip_embed(init_node_embed))</span><br><span class="line">  -&gt; sequence Transformer</span><br><span class="line">  -&gt; post Transformer projection</span><br><span class="line">  -&gt; StructureModuleTransition</span><br><span class="line">  -&gt; BackboneUpdate</span><br><span class="line">  -&gt; compose update into curr_rigids</span><br><span class="line">  -&gt; EdgeTransition, except last block</span><br></pre></td></tr></table></figure>
+<h2 id="单个-block-逐步拆解">7. 单个 block 逐步拆解</h2>
+<h3 id="invariant-point-attention-ipa">7.1 Invariant Point Attention,
+IPA</h3>
+<p>IPA 是整个网络最关键的模块。普通 attention 只用向量相似度：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">attention(i, j) ~ q_i dot k_j</span><br></pre></td></tr></table></figure>
+<p>IPA 还会让每个残基根据当前 frame 生成一些 3D query/key/value
+points，并用空间距离参与 attention：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">attention(i, j)</span><br><span class="line">  = scalar_attention(q_i, k_j)</span><br><span class="line">  + pair_bias(z_ij)</span><br><span class="line">  - weighted_distance(q_points_i, k_points_j)</span><br><span class="line">  + mask_bias</span><br></pre></td></tr></table></figure>
+<p>代码中的主要内部步骤：</p>
+<ol type="1">
+<li>从 <code>node_embed</code> 生成 scalar query/key/value：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">q = Linear(s)</span><br><span class="line">k, v = Linear(s)</span><br></pre></td></tr></table></figure>
+<ol start="2" type="1">
+<li>从 <code>node_embed</code> 生成 point query/key/value：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">q_pts = Linear(s) -&gt; [heads, qk_points, 3]</span><br><span class="line">kv_pts = Linear(s) -&gt; [heads, qk_points + v_points, 3]</span><br></pre></td></tr></table></figure>
+<ol start="3" type="1">
+<li>用当前 residue frame <code>curr_rigids</code>
+把点从局部坐标变换到全局坐标：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">global_q_pts = curr_rigids.apply(local_q_pts)</span><br><span class="line">global_k_pts = curr_rigids.apply(local_k_pts)</span><br></pre></td></tr></table></figure>
+<ol start="4" type="1">
+<li>计算 scalar 注意力、pair bias、point-distance 注意力：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">a_scalar = q dot k</span><br><span class="line">a_pair = Linear(edge_embed)</span><br><span class="line">a_point = -0.5 * weighted_square_distance(q_pts, k_pts)</span><br><span class="line">a = softmax(a_scalar + a_pair + a_point + mask)</span><br></pre></td></tr></table></figure>
+<ol start="5" type="1">
+<li>聚合三类输出：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">scalar output: attention over v</span><br><span class="line">point output: attention over v_points, then invert back to local frame</span><br><span class="line">pair output: attention over down-projected edge_embed</span><br></pre></td></tr></table></figure>
+<ol start="6" type="1">
+<li>拼接输出并投影回 node 维度：</li>
+</ol>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">IPA_out = LinearOut([scalar_out, point_out_xyz, point_norm, pair_out])</span><br></pre></td></tr></table></figure>
+<p>为什么 IPA 适合这个任务：它在计算中显式使用当前三维
+frame，但整体对全局旋转和平移保持等变/不变性质。换句话说，蛋白整体转一下、平移一下，不应改变生成逻辑。</p>
+<h3 id="ipa-residual-layernorm">7.2 IPA residual + LayerNorm</h3>
+<p>IPA 输出不是直接替换 node embedding，而是残差更新：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">node_embed = LayerNorm(node_embed + ipa_embed)</span><br></pre></td></tr></table></figure>
+<p>这是深层网络中常见的稳定训练方式。</p>
+<h3 id="序列-transformer">7.3 序列 Transformer</h3>
+<p>IPA 强调三维结构关系，Transformer 则补充序列维度上的全局上下文。</p>
+<p>代码中每个 block 都会把当前 node embedding 和初始 node embedding 的
+skip projection 拼接：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">seq_tfmr_in = concat(</span><br><span class="line">  node_embed,</span><br><span class="line">  skip_embed(init_node_embed)</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>默认 <code>skip_embed</code> 把 256 维初始 node embedding 投影到 64
+维，所以 Transformer 输入维度是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">256 + 64 = 320</span><br></pre></td></tr></table></figure>
+<p>然后经过：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">TransformerEncoderLayer(</span><br><span class="line">  d_model=320,</span><br><span class="line">  nhead=4,</span><br><span class="line">  dim_feedforward=320,</span><br><span class="line">  dropout=0.0</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>默认每个 block 内有 2 层 Transformer encoder。</p>
+<p>输出再投影回 256 维，并以残差方式加回：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">node_embed = node_embed + post_tfmr(seq_tfmr_out)</span><br></pre></td></tr></table></figure>
+<h3 id="structuremoduletransition">7.4 StructureModuleTransition</h3>
+<p>这是一个 node embedding 的小型残差 MLP：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">s_initial = s</span><br><span class="line">s = Linear(s) -&gt; ReLU</span><br><span class="line">s = Linear(s) -&gt; ReLU</span><br><span class="line">s = Linear(s, final init)</span><br><span class="line">s = LayerNorm(s + s_initial)</span><br></pre></td></tr></table></figure>
+<p>作用是让每个残基独立地进一步加工自己的表示，类似 AlphaFold Structure
+Module 里的 transition block。</p>
+<h3 id="backboneupdate">7.5 BackboneUpdate</h3>
+<p>这是把 node embedding 转成 frame 更新量的模块。代码非常简洁：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update = Linear(node_embed) -&gt; 6</span><br></pre></td></tr></table></figure>
+<p>这 6 维可理解为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">3 维旋转更新 + 3 维平移更新</span><br></pre></td></tr></table></figure>
+<p>然后用 OpenFold 的 rigid 工具组合到当前 frame 上：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">curr_rigids = curr_rigids.compose_q_update_vec(</span><br><span class="line">  rigid_update,</span><br><span class="line">  diffuse_mask</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>注意它只更新 <code>diffuse_mask</code>
+指定的残基；固定残基不会被更新。</p>
+<h3 id="edgetransition">7.6 EdgeTransition</h3>
+<p>除最后一个 block 外，每个 block 后都会更新
+<code>edge_embed</code>。</p>
+<p>EdgeTransition 的输入是：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">node_embed_i</span><br><span class="line">node_embed_j</span><br><span class="line">old_edge_embed_ij</span><br></pre></td></tr></table></figure>
+<p>做法：</p>
+<ol type="1">
+<li>先把每个 node embedding 投影到较小维度；</li>
+<li>对每对残基 <code>(i, j)</code> 拼接 <code>node_i</code> 和
+<code>node_j</code> 形成 pair bias；</li>
+<li>与旧 edge embedding 拼接；</li>
+<li>经过 MLP；</li>
+<li>残差后输出新的 edge embedding。</li>
+</ol>
+<p>直观理解：每轮 frame
+更新后，残基的单体状态变了，残基对关系也应该随之刷新。</p>
+<h2 id="ipascore-的最终输出">8. IpaScore 的最终输出</h2>
+<p>完成所有 block 后，<code>IpaScore</code>
+不直接输出原子坐标，而是输出四类结果：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">final_rigids: 最终预测的去噪 frame</span><br><span class="line">rot_score: 旋转 score</span><br><span class="line">trans_score: 平移 score</span><br><span class="line">psi: backbone psi 扭转角</span><br></pre></td></tr></table></figure>
+<h3 id="rot_score">8.1 rot_score</h3>
+<p>网络得到 <code>curr_rigids</code> 后，用扩散器比较：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">init_rigids: 输入的 noisy frame T_t</span><br><span class="line">curr_rigids: 网络预测的 denoised frame / x0-like frame</span><br></pre></td></tr></table></figure>
+<p>旋转 score 由：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">diffuser.calc_rot_score(init_rots, curr_rots, t)</span><br></pre></td></tr></table></figure>
+<p>计算得到。也就是说，模型内部先预测一个更干净的 rotation，再通过已知
+SO(3) score 公式转换成 score。</p>
+<h3 id="trans_score">8.2 trans_score</h3>
+<p>类似地，平移 score 由：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">diffuser.calc_trans_score(</span><br><span class="line">  init_translation,</span><br><span class="line">  predicted_translation,</span><br><span class="line">  t</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<p>得到。</p>
+<h3 id="psi-预测">8.3 psi 预测</h3>
+<p><code>TorsionAngles</code> 是一个小 MLP，把最终 node embedding 转成
+<code>sin/cos</code> 形式的 psi：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">psi_pred: [B, N, 1, 2]</span><br></pre></td></tr></table></figure>
+<p>它会做归一化，让输出落在单位圆上，表示一个角度的
+<code>sin/cos</code>。</p>
+<h2 id="scorenetwork-的最终重建">9. ScoreNetwork 的最终重建</h2>
+<p><code>ScoreNetwork.forward</code> 拿到 <code>IpaScore</code>
+输出后，会做两件事。</p>
+<p>第一，处理固定残基的 psi：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">psi_pred = model_pred for diffused residues</span><br><span class="line">psi_pred = ground truth psi for fixed residues</span><br></pre></td></tr></table></figure>
+<p>第二，用 <code>compute_backbone</code> 重建 backbone 原子：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">atom37, atom37_mask, aatype, atom14 = compute_backbone(rigids_pred, psi_pred)</span><br></pre></td></tr></table></figure>
+<p>这里的 <code>compute_backbone</code>
+会用理想化残基几何模板，把每个预测 frame 转成原子坐标。它主要恢复：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">N, CA, C, O, CB-like placeholder</span><br></pre></td></tr></table></figure>
+<p>最终 <code>ScoreNetwork</code> 返回：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;psi&quot;: psi_pred,</span><br><span class="line">  &quot;rot_score&quot;: rot_score,</span><br><span class="line">  &quot;trans_score&quot;: trans_score,</span><br><span class="line">  &quot;rigids&quot;: final_rigids.to_tensor_7(),</span><br><span class="line">  &quot;atom37&quot;: reconstructed atom37 coords,</span><br><span class="line">  &quot;atom14&quot;: reconstructed atom14 coords</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="训练目标">10. 训练目标</h2>
+<p>训练入口在 <code>experiments/train_se3_diffusion.py</code>。核心是
+<code>loss_fn</code>。</p>
+<p>总损失由四类组成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">final_loss =</span><br><span class="line">  rot_loss</span><br><span class="line">  + trans_loss</span><br><span class="line">  + bb_atom_loss</span><br><span class="line">  + dist_mat_loss</span><br></pre></td></tr></table></figure>
+<h3 id="rotation-score-loss">10.1 rotation score loss</h3>
+<p>前向扩散器能给出真实的 <code>gt_rot_score</code>，网络输出
+<code>pred_rot_score</code>。二者做 MSE，并按
+<code>rot_score_scaling</code> 归一化：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rot_loss = MSE(gt_rot_score, pred_rot_score) / rot_score_scaling^2</span><br></pre></td></tr></table></figure>
+<h3 id="translation-loss">10.2 translation loss</h3>
+<p>平移部分有两种形式：</p>
+<ul>
+<li>score loss: 比较 <code>gt_trans_score</code> 和
+<code>pred_trans_score</code></li>
+<li>x0 loss: 比较真实 <code>rigids_0</code> 的 translation 和模型预测
+translation</li>
+</ul>
+<p>代码中：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">trans_score_loss = MSE(gt_trans_score, pred_trans_score)</span><br><span class="line">trans_x0_loss = MSE(gt_trans_x0, pred_trans_x0)</span><br></pre></td></tr></table></figure>
+<p>默认配置里 <code>trans_x0_threshold=1.0</code>，而训练采样
+<code>t &lt;= 1.0</code>，所以实现上平移损失基本走 x0 loss 分支。</p>
+<h3 id="backbone-atom-auxiliary-loss">10.3 backbone atom auxiliary
+loss</h3>
+<p>当 <code>t &lt; bb_atom_loss_t_filter</code> 时启用，默认阈值：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">bb_atom_loss_t_filter:</span> <span class="number">0.25</span></span><br></pre></td></tr></table></figure>
+<p>它比较预测 backbone 原子坐标和真实 backbone
+原子坐标，帮助模型在低噪声阶段生成更准确的局部几何。</p>
+<h3 id="pairwise-distance-auxiliary-loss">10.4 pairwise distance
+auxiliary loss</h3>
+<p>当 <code>t &lt; dist_mat_loss_t_filter</code> 时启用，默认也是
+0.25。</p>
+<p>它比较原子之间的 pairwise distance，且只关注真实距离小于 6 Å
+的近邻关系：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">proximity_mask = gt_pair_dists &lt; 6</span><br></pre></td></tr></table></figure>
+<p>这能鼓励局部空间关系更合理，减少结构断裂和碰撞。</p>
+<h2 id="采样推理流程">11. 采样/推理流程</h2>
+<p>推理时从参考分布采样初始 <code>rigids_t</code>，通常是
+<code>t=1</code> 的强噪声 frame：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rot_ref ~ SO(3) reference</span><br><span class="line">trans_ref ~ Normal(0, I)</span><br></pre></td></tr></table></figure>
+<p>然后从 <code>t=1</code> 逐步反向走到 <code>min_t</code>：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">for t in reverse_steps:</span><br><span class="line">  1. 设置当前 t 特征</span><br><span class="line">  2. model(sample_feats) 得到 rot_score, trans_score, predicted rigids</span><br><span class="line">  3. 如果 self-conditioning 开启，用 predicted CA 更新 sc_ca_t</span><br><span class="line">  4. diffuser.reverse(...) 得到下一步 rigids_&#123;t-dt&#125;</span><br><span class="line">  5. 用 psi 和当前 rigid 重建 backbone 轨迹</span><br></pre></td></tr></table></figure>
+<p>最后一步接近 <code>min_t</code> 时，代码直接使用模型输出的
+<code>rigids</code> 作为最终预测。</p>
+<h2 id="self-conditioning-是什么">12. self-conditioning 是什么</h2>
+<p>self-conditioning
+是扩散模型里常见的技巧：模型在下一次预测时，把上一次预测的
+<code>x0</code> 当作额外输入。</p>
+<p>在这个实现里，self-conditioning 不是把完整结构丢回网络，而是提取预测
+CA 坐标：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sc_ca_t = model_sc[&quot;rigids&quot;][..., 4:]</span><br></pre></td></tr></table></figure>
+<p>然后在 <code>Embedder</code> 中转成 CA-CA distogram：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">self_conditioning_ca</span><br><span class="line">  -&gt; pairwise CA distance</span><br><span class="line">  -&gt; 22-bin distogram</span><br><span class="line">  -&gt; edge feature</span><br></pre></td></tr></table></figure>
+<p>训练时以约 50% 概率启用；推理时默认开启并在每个反向步更新。</p>
+<h2 id="模型超参数总览">13. 模型超参数总览</h2>
+<p>根据 <code>config/base.yaml</code>，默认结构为：</p>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 28%" />
+<col style="width: 28%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr>
+<th>模块</th>
+<th style="text-align: right;">参数</th>
+<th style="text-align: right;">默认值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>node embedding</td>
+<td style="text-align: right;"><code>node_embed_size</code></td>
+<td style="text-align: right;">256</td>
+<td>残基单体表示维度</td>
+</tr>
+<tr>
+<td>edge embedding</td>
+<td style="text-align: right;"><code>edge_embed_size</code></td>
+<td style="text-align: right;">128</td>
+<td>残基对表示维度</td>
+</tr>
+<tr>
+<td>index embedding</td>
+<td style="text-align: right;"><code>index_embed_size</code></td>
+<td style="text-align: right;">32</td>
+<td>时间和序列位置编码维度</td>
+</tr>
+<tr>
+<td>IPA</td>
+<td style="text-align: right;"><code>c_hidden</code></td>
+<td style="text-align: right;">256</td>
+<td>IPA head 内部 hidden 维度</td>
+</tr>
+<tr>
+<td>IPA</td>
+<td style="text-align: right;"><code>no_heads</code></td>
+<td style="text-align: right;">8</td>
+<td>attention head 数</td>
+</tr>
+<tr>
+<td>IPA</td>
+<td style="text-align: right;"><code>no_qk_points</code></td>
+<td style="text-align: right;">8</td>
+<td>每个 head 的 query/key point 数</td>
+</tr>
+<tr>
+<td>IPA</td>
+<td style="text-align: right;"><code>no_v_points</code></td>
+<td style="text-align: right;">12</td>
+<td>每个 head 的 value point 数</td>
+</tr>
+<tr>
+<td>Seq Transformer</td>
+<td style="text-align: right;"><code>seq_tfmr_num_heads</code></td>
+<td style="text-align: right;">4</td>
+<td>序列 Transformer head 数</td>
+</tr>
+<tr>
+<td>Seq Transformer</td>
+<td style="text-align: right;"><code>seq_tfmr_num_layers</code></td>
+<td style="text-align: right;">2</td>
+<td>每个 block 内 Transformer 层数</td>
+</tr>
+<tr>
+<td>主干</td>
+<td style="text-align: right;"><code>num_blocks</code></td>
+<td style="text-align: right;">4</td>
+<td>IPA/Transformer/frame update block 数</td>
+</tr>
+<tr>
+<td>R3 diffusion</td>
+<td style="text-align: right;"><code>coordinate_scaling</code></td>
+<td style="text-align: right;">0.1</td>
+<td>坐标缩放</td>
+</tr>
+<tr>
+<td>SO3 diffusion</td>
+<td style="text-align: right;"><code>min_sigma/max_sigma</code></td>
+<td style="text-align: right;">0.1/1.5</td>
+<td>旋转噪声范围</td>
+</tr>
+</tbody>
+</table>
+<h2 id="从代码角度看张量形状">14. 从代码角度看张量形状</h2>
+<p>假设 batch 大小为 B，蛋白长度为 N：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">seq_idx: [B, N]</span><br><span class="line">t: [B]</span><br><span class="line">res_mask: [B, N]</span><br><span class="line">fixed_mask: [B, N]</span><br><span class="line">rigids_t: [B, N, 7]</span><br><span class="line">sc_ca_t: [B, N, 3]</span><br><span class="line"></span><br><span class="line">node_embed: [B, N, 256]</span><br><span class="line">edge_embed: [B, N, N, 128]</span><br><span class="line">curr_rigids: Rigid object, logically [B, N]</span><br><span class="line"></span><br><span class="line">rot_score: [B, N, 3]</span><br><span class="line">trans_score: [B, N, 3]</span><br><span class="line">psi: [B, N, 1, 2]</span><br><span class="line">atom37: [B, N, 37, 3]</span><br><span class="line">atom14: [B, N, 14, 3]</span><br></pre></td></tr></table></figure>
+<h2 id="网络结构精简图">15. 网络结构精简图</h2>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">                    seq_idx, t, fixed_mask, sc_ca_t</span><br><span class="line">                               |</span><br><span class="line">                               v</span><br><span class="line">                           Embedder</span><br><span class="line">                  /                         \</span><br><span class="line">                 v                           v</span><br><span class="line">       node_embed [B,N,256]        edge_embed [B,N,N,128]</span><br><span class="line">                 \                           /</span><br><span class="line">                  \                         /</span><br><span class="line">                   v                       v</span><br><span class="line">                    IpaScore / FramePred</span><br><span class="line">                               |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">| block 1                                                        |</span><br><span class="line">|   IPA -&gt; LN -&gt; SeqTransformer -&gt; NodeTransition -&gt; FrameUpdate |</span><br><span class="line">|   -&gt; EdgeTransition                                            |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">                               |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">| block 2                                                        |</span><br><span class="line">|   IPA -&gt; LN -&gt; SeqTransformer -&gt; NodeTransition -&gt; FrameUpdate |</span><br><span class="line">|   -&gt; EdgeTransition                                            |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">                               |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">| block 3                                                        |</span><br><span class="line">|   IPA -&gt; LN -&gt; SeqTransformer -&gt; NodeTransition -&gt; FrameUpdate |</span><br><span class="line">|   -&gt; EdgeTransition                                            |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">                               |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">| block 4                                                        |</span><br><span class="line">|   IPA -&gt; LN -&gt; SeqTransformer -&gt; NodeTransition -&gt; FrameUpdate |</span><br><span class="line">|   no EdgeTransition on last block                              |</span><br><span class="line">----------------------------------------------------------------</span><br><span class="line">                               |</span><br><span class="line">                               v</span><br><span class="line">           final_rigids, rot_score, trans_score, psi</span><br><span class="line">                               |</span><br><span class="line">                               v</span><br><span class="line">                       compute_backbone</span><br><span class="line">                               |</span><br><span class="line">                               v</span><br><span class="line">                  atom37 / atom14 backbone coords</span><br></pre></td></tr></table></figure>
+<h2 id="各模块的学习重点">16. 各模块的学习重点</h2>
+<p>如果你要系统学习这个模型，建议按下面顺序读：</p>
+<ol type="1">
+<li>先读
+<code>ScoreNetwork.forward</code>：理解输入输出字段，不要一开始陷入
+SO(3) 数学。</li>
+<li>再读 <code>Embedder.forward</code>：看清 node/edge
+特征如何构造。</li>
+<li>读 <code>IpaScore.forward</code>：掌握主干 block 的执行顺序。</li>
+<li>读
+<code>InvariantPointAttention.forward</code>：这是最核心、最复杂的结构模块。</li>
+<li>读 <code>SE3Diffuser.forward_marginal</code> 与
+<code>reverse</code>：理解训练加噪和采样去噪。</li>
+<li>最后读 <code>loss_fn</code>：把网络输出和训练目标对应起来。</li>
+</ol>
+<h2 id="这个模型结构的优点">17. 这个模型结构的优点</h2>
+<ul>
+<li>用 SE(3) frame 表示
+backbone，比直接生成原子坐标更贴合蛋白几何。</li>
+<li>旋转和平移分别在合适空间扩散：<code>SO(3)</code>
+处理旋转，<code>R^3</code> 处理坐标。</li>
+<li>IPA 能把序列表示、pair 表示和三维几何统一进 attention。</li>
+<li>BackboneUpdate 每一层都更新 frame，使网络可以像 AlphaFold Structure
+Module 一样迭代修正结构。</li>
+<li>self-conditioning
+给模型提供上一轮预测的结构先验，通常能改善采样稳定性。</li>
+</ul>
+<h2 id="需要注意的局限">18. 需要注意的局限</h2>
+<ul>
+<li>该模型主要生成 backbone，不直接生成完整 sidechain。</li>
+<li>默认训练数据过滤偏向单体蛋白，长度范围和结构分布受配置影响。</li>
+<li>SO(3) 扩散依赖预计算 IGSO(3) 表格，理解和修改时要注意缓存。</li>
+<li>代码 README 也提到作者计划重构 score framework
+以更贴近论文数学，因此当前实现有些地方更像工程实现而不是论文公式的直译。</li>
+<li>平移损失在当前默认配置下基本使用 x0 loss 分支，这一点和“纯 score
+matching”的直观说法略有差异，读代码时要特别留意。</li>
+</ul>
+<h2 id="记忆版总结">19. 记忆版总结</h2>
+<p>FrameDiff 的网络可以记成四句话：</p>
+<ol type="1">
+<li>每个残基先被表示成一个 SE(3) 刚体
+frame，而不是一堆自由原子坐标。</li>
+<li>前向过程分别给 frame 的旋转和平移加噪，得到
+<code>rigids_t</code>。</li>
+<li>去噪网络用 <code>IPA + sequence Transformer + frame update</code>
+反复更新残基表示和 frame。</li>
+<li>输出的 frame、旋转/平移 score 和 psi 角共同恢复最终 backbone。</li>
+</ol>
+<p>最核心的结构不是普通 Transformer，而是 <code>IpaScore</code>
+中反复堆叠的 IPA block。IPA 让 attention
+同时看见三件事：残基自身特征、残基对特征、当前三维空间位置关系。这正是它能用于蛋白
+backbone 生成的关键。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://do7math.github.io">Du Wei</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://do7math.github.io/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/">https://do7math.github.io/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/diffusion/">diffusion</a><a class="post-meta__tags" href="/tags/FrameDiff/">FrameDiff</a><a class="post-meta__tags" href="/tags/protein/">protein</a><a class="post-meta__tags" href="/tags/SE-3/">SE(3)</a></div><div class="post-share"><div class="social-share" data-image="/img/%E5%A4%B4%E5%83%8F.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/" title="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">Previous</div><div class="info-item-2">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</div></div><div class="info-2"><div class="info-item-1">0. 资料定位 这份资料面向已经了解分子动力学、深度学习分子建模或 generative model 基础概念，但还没有系统读过 UniSim 的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。 资料来源：  本地论文 PDF：26 UniSim Time-Coarsened Dynamics of Biomolecules.pdf 论文标题：UniSim: A Unified Simulator for Time-Coarsened Dynamics of Biomolecules 作者：Ziyang Yu, Wenbing Huang, Yang Liu 会议：ICML 2025, Proceedings of the 42nd International Conference on Machine Learning 代码仓库：https://github.com/yaledeus/UniSim 本次读取的仓库提交：58b5740a076e1add1282355cc5dc7406c936afd...</div></div></div></a><a class="pagination-related" href="/2026/03/31/hello-world/" title="Hello World"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">Hello World</div></div><div class="info-2"><div class="info-item-1">Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub. Quick Start Create a new post 1$ hexo new &quot;My New Post&quot; More info: Writing Run server 1$ hexo server More info: Server Generate static files 1$ hexo generate More info: Generating Deploy to remote sites 1$ hexo deploy More info: Deployment test </div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/01/23/DDPM/" title="DDPM"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-23</div><div class="info-item-2">DDPM</div></div><div class="info-2"><div class="info-item-1">KL divergence（KL 散度）  KL散度是描述两个概率分布差异程度的度量。 对于两种概率分布 \(P,Q\)，对应概率密度函数\(p(x), q(x)\)。  定义 连续情形： \[ \mathrm{KL}(P\|Q)=\int p(x)\log\frac{p(x)}{q(x)}\,dx \] 离散情形： \[ \mathrm{KL}(P\|Q)=\sum_x p(x)\log\frac{p(x)}{q(x)}. \] 性质：具有非负性（\(\mathrm{KL}(P\|Q)\ge 0\)），且一般不对称（\(\mathrm{KL}(P\|Q)\neq \mathrm{KL}(Q\|P)\)）。 与熵 / 交叉熵的关系（离散写法） \[ \begin{aligned} \mathrm{KL}(P\|Q) &amp;=\sum_x p(x)\log\frac{p(x)}{q(x)} \\ &amp;=\sum_x p(x)\log p(x)-\sum_x p(x)\log q(x) \\ &amp;=-H(p)+H(p,q), \end{aligned} \] 其中 \...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/%E5%A4%B4%E5%83%8F.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Du Wei</div><div class="author-info-description">面朝大海，春暖花开</div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">9</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A8%A1%E5%9E%8B%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%A6%82%E6%8B%AC"><span class="toc-number">1.</span> <span class="toc-text">1. 模型一句话概括</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B4%E4%BD%93%E6%B5%81%E6%B0%B4%E7%BA%BF"><span class="toc-number">2.</span> <span class="toc-text">2. 整体流水线</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E8%A1%A8%E7%A4%BA%E4%B8%BA%E4%BB%80%E4%B9%88%E6%98%AF-frame-%E8%80%8C%E4%B8%8D%E6%98%AF%E7%9B%B4%E6%8E%A5%E5%9D%90%E6%A0%87"><span class="toc-number">3.</span> <span class="toc-text">3. 数据表示：为什么是
+frame 而不是直接坐标</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AE%8B%E5%9F%BA-frame"><span class="toc-number">3.1.</span> <span class="toc-text">3.1 残基 frame</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%8A%82%E7%82%B9%E8%BE%B9%E4%B8%8E-mask"><span class="toc-number">3.2.</span> <span class="toc-text">3.2 节点、边与 mask</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E5%90%91%E6%89%A9%E6%95%A3se3-%E8%A2%AB%E6%8B%86%E6%88%90-r3-%E5%92%8C-so3"><span class="toc-number">4.</span> <span class="toc-text">4. 前向扩散：SE(3) 被拆成 R^3 和
+SO(3)</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B9%B3%E7%A7%BB%E6%89%A9%E6%95%A3-r3diffuser"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 平移扩散 R3Diffuser</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%97%8B%E8%BD%AC%E6%89%A9%E6%95%A3-so3diffuser"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 旋转扩散 SO3Diffuser</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%BE%93%E5%85%A5%E7%89%B9%E5%BE%81%E4%B8%8E-embedder"><span class="toc-number">5.</span> <span class="toc-text">5. 输入特征与 Embedder</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%BE%93%E5%85%A5%E5%AD%97%E6%AE%B5"><span class="toc-number">5.1.</span> <span class="toc-text">5.1 输入字段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#node-embedding"><span class="toc-number">5.2.</span> <span class="toc-text">5.2 node embedding</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#edge-embedding"><span class="toc-number">5.3.</span> <span class="toc-text">5.3 edge embedding</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BB%E5%B9%B2%E7%BD%91%E7%BB%9Cipascore-framepred"><span class="toc-number">6.</span> <span class="toc-text">6. 主干网络：IpaScore &#x2F;
+FramePred</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%95%E4%B8%AA-block-%E9%80%90%E6%AD%A5%E6%8B%86%E8%A7%A3"><span class="toc-number">7.</span> <span class="toc-text">7. 单个 block 逐步拆解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#invariant-point-attention-ipa"><span class="toc-number">7.1.</span> <span class="toc-text">7.1 Invariant Point Attention,
+IPA</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#ipa-residual-layernorm"><span class="toc-number">7.2.</span> <span class="toc-text">7.2 IPA residual + LayerNorm</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BA%8F%E5%88%97-transformer"><span class="toc-number">7.3.</span> <span class="toc-text">7.3 序列 Transformer</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#structuremoduletransition"><span class="toc-number">7.4.</span> <span class="toc-text">7.4 StructureModuleTransition</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#backboneupdate"><span class="toc-number">7.5.</span> <span class="toc-text">7.5 BackboneUpdate</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#edgetransition"><span class="toc-number">7.6.</span> <span class="toc-text">7.6 EdgeTransition</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ipascore-%E7%9A%84%E6%9C%80%E7%BB%88%E8%BE%93%E5%87%BA"><span class="toc-number">8.</span> <span class="toc-text">8. IpaScore 的最终输出</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#rot_score"><span class="toc-number">8.1.</span> <span class="toc-text">8.1 rot_score</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#trans_score"><span class="toc-number">8.2.</span> <span class="toc-text">8.2 trans_score</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#psi-%E9%A2%84%E6%B5%8B"><span class="toc-number">8.3.</span> <span class="toc-text">8.3 psi 预测</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#scorenetwork-%E7%9A%84%E6%9C%80%E7%BB%88%E9%87%8D%E5%BB%BA"><span class="toc-number">9.</span> <span class="toc-text">9. ScoreNetwork 的最终重建</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E7%9B%AE%E6%A0%87"><span class="toc-number">10.</span> <span class="toc-text">10. 训练目标</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#rotation-score-loss"><span class="toc-number">10.1.</span> <span class="toc-text">10.1 rotation score loss</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#translation-loss"><span class="toc-number">10.2.</span> <span class="toc-text">10.2 translation loss</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#backbone-atom-auxiliary-loss"><span class="toc-number">10.3.</span> <span class="toc-text">10.3 backbone atom auxiliary
+loss</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#pairwise-distance-auxiliary-loss"><span class="toc-number">10.4.</span> <span class="toc-text">10.4 pairwise distance
+auxiliary loss</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%87%87%E6%A0%B7%E6%8E%A8%E7%90%86%E6%B5%81%E7%A8%8B"><span class="toc-number">11.</span> <span class="toc-text">11. 采样&#x2F;推理流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#self-conditioning-%E6%98%AF%E4%BB%80%E4%B9%88"><span class="toc-number">12.</span> <span class="toc-text">12. self-conditioning 是什么</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A8%A1%E5%9E%8B%E8%B6%85%E5%8F%82%E6%95%B0%E6%80%BB%E8%A7%88"><span class="toc-number">13.</span> <span class="toc-text">13. 模型超参数总览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8E%E4%BB%A3%E7%A0%81%E8%A7%92%E5%BA%A6%E7%9C%8B%E5%BC%A0%E9%87%8F%E5%BD%A2%E7%8A%B6"><span class="toc-number">14.</span> <span class="toc-text">14. 从代码角度看张量形状</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84%E7%B2%BE%E7%AE%80%E5%9B%BE"><span class="toc-number">15.</span> <span class="toc-text">15. 网络结构精简图</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%90%84%E6%A8%A1%E5%9D%97%E7%9A%84%E5%AD%A6%E4%B9%A0%E9%87%8D%E7%82%B9"><span class="toc-number">16.</span> <span class="toc-text">16. 各模块的学习重点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%BF%99%E4%B8%AA%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E7%9A%84%E4%BC%98%E7%82%B9"><span class="toc-number">17.</span> <span class="toc-text">17. 这个模型结构的优点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%9C%80%E8%A6%81%E6%B3%A8%E6%84%8F%E7%9A%84%E5%B1%80%E9%99%90"><span class="toc-number">18.</span> <span class="toc-text">18. 需要注意的局限</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%B0%E5%BF%86%E7%89%88%E6%80%BB%E7%BB%93"><span class="toc-number">19.</span> <span class="toc-text">19. 记忆版总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/" title="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</a><time datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/" title="FrameDiff / SE(3) Diffusion 模型结构学习报告">FrameDiff / SE(3) Diffusion 模型结构学习报告</a><time datetime="2026-08-28T00:54:25.000Z" title="Created 2026-08-28 08:54:25">2026-08-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/31/hello-world/" title="Hello World">Hello World</a><time datetime="2026-03-30T16:20:12.867Z" title="Created 2026-03-31 00:20:12">2026-03-31</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/01/23/DDPM/" title="DDPM">DDPM</a><time datetime="2026-01-23T08:39:20.000Z" title="Created 2026-01-23 16:39:20">2026-01-23</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/01/20/%E5%BE%AE%E5%88%86%E6%B5%81%E5%BD%A2-%E4%B8%80/" title="微分流形(一)">微分流形(一)</a><time datetime="2026-01-20T08:51:06.000Z" title="Created 2026-01-20 16:51:06">2026-01-20</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By Du Wei</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
