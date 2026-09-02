@@ -7,7 +7,7 @@
 <meta property="og:locale">
 <meta property="og:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg">
 <meta property="article:published_time" content="2026-09-01T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-09-02T07:58:35.808Z">
+<meta property="article:modified_time" content="2026-09-02T08:16:40.771Z">
 <meta property="article:author" content="Du Wei">
 <meta property="article:tag" content="UniSim">
 <meta property="article:tag" content="biomolecule">
@@ -21,7 +21,7 @@
   "url": "https://do7math.github.io/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/",
   "image": "https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg",
   "datePublished": "2026-09-01T16:00:00.000Z",
-  "dateModified": "2026-09-02T07:58:35.808Z",
+  "dateModified": "2026-09-02T08:16:40.771Z",
   "author": [
     {
       "@type": "Person",
@@ -162,7 +162,7 @@
   isHighlightShrink: false,
   isToc: true,
   pageType: 'post'
-}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Du Wei</span></a><a class="nav-page-title" href="/"><span class="site-name">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-09-02T07:58:35.808Z" title="Updated 2026-09-02 15:58:35">2026-09-02</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h2 id="资料定位">0. 资料定位</h2>
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Du Wei</span></a><a class="nav-page-title" href="/"><span class="site-name">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-09-02T08:16:40.771Z" title="Updated 2026-09-02 16:16:40">2026-09-02</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h2 id="资料定位">0. 资料定位</h2>
 <p>这份资料面向已经了解分子动力学、深度学习分子建模或 generative model
 基础概念，但还没有系统读过 UniSim
 的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。</p>
@@ -189,11 +189,12 @@ stochastic interpolant 生成 + force guidance 适配的框架中，以比传统
 <p><span class="math display">\[
 G_t = (Z, X_t)
 \]</span></p>
-<p>其中 <code>Z</code>
-是原子类型，<code>X_t \in \mathbb{R}^{N \times 3}</code> 是第
-<code>t</code> 时刻的三维坐标。经典 MD 通常通过 Newton 方程或 Langevin
-dynamics 做数值积分。为了稳定，积分时间步很小，论文在引言中给出的量级是
-<code>10^-15 s</code>，也就是 femtosecond
+<p>其中 <span class="math inline">\(Z\)</span> 是原子类型，<span
+class="math inline">\(X_t \in \mathbb{R}^{N \times 3}\)</span> 是第
+<span class="math inline">\(t\)</span> 时刻的三维坐标。经典 MD 通常通过
+Newton 方程或 Langevin dynamics
+做数值积分。为了稳定，积分时间步很小，论文在引言中给出的量级是 <span
+class="math inline">\(10^{-15}\)</span> s，也就是 femtosecond
 级别。问题是，很多生物分子现象关心的是 ps、ns、us
 甚至更长尺度的构象转变；如果每一步都用 fs 积分，代价会非常高。</p>
 <p>UniSim 的任务属于
@@ -223,8 +224,9 @@ backbone CA 与 side-chain CB 都是碳，但语义并不相同。</p>
 <ol type="1">
 <li>先做统一原子表征预训练，让模型从多域 3D molecular data
 中学到可迁移的局部相互作用模式。</li>
-<li>再用 stochastic interpolant 学习长时间步的状态转移，也就是从
-<code>X_0</code> 到 <code>X_1</code> 的生成桥。</li>
+<li>再用 stochastic interpolant 学习长时间步的状态转移，也就是从 <span
+class="math inline">\(X_0\)</span> 到 <span
+class="math inline">\(X_1\)</span> 的生成桥。</li>
 <li>最后用 force guidance kernel
 在冻结主干的基础上适配特定化学环境，把物理势能/力信息注入采样过程。</li>
 </ol>
@@ -249,7 +251,7 @@ backbone CA 与 side-chain CB 都是碳，但语义并不相同。</p>
 </thead>
 <tbody>
 <tr>
-<td>统一原子表征模型 <code>phi</code></td>
+<td>统一原子表征模型 <span class="math inline">\(\phi\)</span></td>
 <td><code>module/model.py</code></td>
 <td><code>EnergyKernel</code></td>
 <td>用 TorchMD-NET 主干 + 多个 GVP head 学 force/denoise 表征</td>
@@ -258,17 +260,19 @@ backbone CA 与 side-chain CB 都是碳，但语义并不相同。</p>
 <td>stochastic interpolant</td>
 <td><code>module/interpolant_matcher.py</code></td>
 <td><code>StochasticInterpolantMatcher</code></td>
-<td>采样中间态 <code>x_t</code>，给出速度和 denoiser 监督信号</td>
+<td>采样中间态 <span class="math inline">\(x_t\)</span>，给出速度和
+denoiser 监督信号</td>
 </tr>
 <tr>
-<td>vector field model <code>varphi</code></td>
+<td>vector field model <span class="math inline">\(\varphi\)</span></td>
 <td><code>module/model.py</code></td>
 <td><code>GeomBM</code></td>
-<td>用预训练 encoder 输出速度场 <code>v</code> 和 denoiser
-<code>eta_z</code></td>
+<td>用预训练 encoder 输出速度场 <span class="math inline">\(v\)</span>
+和 denoiser <span class="math inline">\(\eta_z\)</span></td>
 </tr>
 <tr>
-<td>force guidance kernel <code>zeta</code></td>
+<td>force guidance kernel <span
+class="math inline">\(\zeta\)</span></td>
 <td><code>module/model.py</code></td>
 <td><code>GeomFBM</code></td>
 <td>冻结 BM 主模型，训练虚拟 force guidance 修正 SDE drift</td>
@@ -315,27 +319,32 @@ G = (Z, X)
 \]</span></p>
 <p>其中：</p>
 <ul>
-<li><code>Z \in \mathbb{R}^N</code>：原子类型。</li>
-<li><code>X \in \mathbb{R}^{N \times 3}</code>：原子坐标。</li>
-<li><code>epsilon(X)</code>：势能函数。</li>
-<li><code>F = -\nabla \epsilon(X)</code>：MD force。</li>
+<li><span class="math inline">\(Z \in
+\mathbb{R}^N\)</span>：原子类型。</li>
+<li><span class="math inline">\(X \in \mathbb{R}^{N \times
+3}\)</span>：原子坐标。</li>
+<li><span class="math inline">\(\epsilon(X)\)</span>：势能函数。</li>
+<li><span class="math inline">\(F = -\nabla \epsilon(X)\)</span>：MD
+force。</li>
 </ul>
 <p>数据分两类：</p>
 <ul>
-<li><code>D_1 ... D_m</code>：3D conformation
+<li><span class="math inline">\(D_1,\ldots,D_m\)</span>：3D conformation
 数据，可用于表征预训练。</li>
-<li><code>T_1 ... T_l</code>：MD trajectory 数据，可从中抽取
-<code>(X_t, X_{t+\tau})</code> 训练动力学模型。</li>
+<li><span class="math inline">\(T_1,\ldots,T_l\)</span>：MD trajectory
+数据，可从中抽取 <span class="math inline">\((X_t, X_{t+\tau})\)</span>
+训练动力学模型。</li>
 </ul>
 <p>UniSim 的三个目标是：</p>
 <ol type="1">
-<li>在多域数据上预训练统一 atomic representation model
-<code>phi</code>。</li>
-<li>用 trajectory pair 训练 vector field model
-<code>varphi</code>，学习长时间步转移。</li>
-<li>对不同 chemical environment 训练 force guidance kernel
-<code>zeta</code>，同时冻结 <code>phi</code> 与 <code>varphi</code> 作为
-reusable backbone。</li>
+<li>在多域数据上预训练统一 atomic representation model <span
+class="math inline">\(\phi\)</span>。</li>
+<li>用 trajectory pair 训练 vector field model <span
+class="math inline">\(\varphi\)</span>，学习长时间步转移。</li>
+<li>对不同 chemical environment 训练 force guidance kernel <span
+class="math inline">\(\zeta\)</span>，同时冻结 <span
+class="math inline">\(\phi\)</span> 与 <span
+class="math inline">\(\varphi\)</span> 作为 reusable backbone。</li>
 </ol>
 <h3 id="统一预训练为什么不直接混所有数据">4.2
 统一预训练：为什么不直接混所有数据</h3>
@@ -479,10 +488,10 @@ X_s = (1-s)X_0 + sX_1 + \gamma(s)Z,\quad Z \sim \mathcal{N}(0, I)
 \]</span></p>
 <p>训练目标有两部分：</p>
 <ul>
-<li>velocity head <code>v(s, X_s)</code> 预测
-<code>X_1 - X_0</code>。</li>
-<li>denoiser head <code>eta_z(s, X_s)</code> 预测噪声
-<code>Z</code>。</li>
+<li>velocity head <span class="math inline">\(v(s, X_s)\)</span> 预测
+<span class="math inline">\(X_1 - X_0\)</span>。</li>
+<li>denoiser head <span class="math inline">\(\eta_z(s, X_s)\)</span>
+预测噪声 <span class="math inline">\(Z\)</span>。</li>
 </ul>
 <p>代码中对应：</p>
 <ul>
@@ -494,8 +503,8 @@ X_s = (1-s)X_0 + sX_1 + \gamma(s)Z,\quad Z \sim \mathcal{N}(0, I)
 重建两端 pairwise distance，约束局部几何一致性。</li>
 </ul>
 <p>推理时，<code>GeomBM.sde(...)</code> 以 <code>x0</code> 为起点，把
-<code>s in [0,1]</code> 离散成 <code>sde_step</code> 个步子，通过 drift
-+ diffusion
+<span class="math inline">\(s \in [0,1]\)</span> 离散成
+<code>sde_step</code> 个步子，通过 drift + diffusion
 生成下一个构象。然后把生成结果作为下一轮初始态，自回归生成整条
 trajectory。</p>
 <h3 id="force-guidance为什么还要再训练一个-kernel">4.5 force
@@ -599,7 +608,8 @@ target。</p>
 <th>Dataset</th>
 <th style="text-align: right;">frame spacing</th>
 <th style="text-align: right;">trajectory simulation time</th>
-<th style="text-align: right;">coarsened time <code>tau</code></th>
+<th style="text-align: right;">coarsened time <span
+class="math inline">\(\tau\)</span></th>
 <th style="text-align: right;">train/test</th>
 </tr>
 </thead>
@@ -627,7 +637,7 @@ target。</p>
 </tr>
 </tbody>
 </table>
-<p>理解这里的 <code>tau</code> 很重要。UniSim
+<p>理解这里的 <span class="math inline">\(\tau\)</span> 很重要。UniSim
 在不同域里学习的跳步尺度不同：小分子和 ATLAS 蛋白的 coarsened step
 更大，PepMD peptide 的 step 较小。复现实验时不要只看
 <code>sde_step</code>，还要看数据预处理脚本里 pair 的间隔。</p>
@@ -704,8 +714,10 @@ model</h3>
 <li><code>train.py</code> 创建 <code>GeomBM(encoder, ...)</code>。</li>
 <li><code>GeomBM._train</code> 调用 <code>sample_conditional_flow</code>
 构造 <code>x_t</code>。</li>
-<li><code>loss_vel</code> 学 <code>X_1 - X_0</code>。</li>
-<li><code>loss_den</code> 学噪声 <code>Z</code>。</li>
+<li><code>loss_vel</code> 学 <span class="math inline">\(X_1 -
+X_0\)</span>。</li>
+<li><code>loss_den</code> 学噪声 <span
+class="math inline">\(Z\)</span>。</li>
 <li><code>loss_aux</code> 约束两端构象的 pairwise distance。</li>
 </ul>
 <h3 id="第三阶段训练-force-guidance-kernel">6.5 第三阶段：训练 force
@@ -1023,7 +1035,7 @@ study</h3>
 <ul>
 <li>从 mdshare 获得 3 条独立 250 ns MD trajectory。</li>
 <li>train/valid/test 各用一条。</li>
-<li><code>tau = 100 ps</code>。</li>
+<li><span class="math inline">\(\tau = 100\ \mathrm{ps}\)</span>。</li>
 <li>随机采样 200,000 个 data pairs 用于训练/验证。</li>
 <li>在 PepMD 训练后的 UniSim 上 finetune，学习率 <code>1e-4</code>，300
 epochs。</li>
@@ -1116,12 +1128,14 @@ steps</h3>
 <ul>
 <li>增大 <code>alpha</code> 倾向于提高 VAL-CA，但 PWD/Rg/CONTACT
 可能变差。</li>
-<li><code>T=25</code> 不比 <code>T=15</code> 稳定更好，说明离散 SDE
+<li><span class="math inline">\(T=25\)</span> 不比 <span
+class="math inline">\(T=15\)</span> 稳定更好，说明离散 SDE
 步数太多会增加误差累积。</li>
 <li>这和直觉相反：更多微步不一定更准，因为模型每一步都有近似误差。</li>
 </ul>
 <h3 id="atomic-embedding-expansion">10.2 atomic embedding expansion</h3>
-<p>Table 9 移除 expanded atomic embedding <code>A_e</code>：</p>
+<p>Table 9 移除 expanded atomic embedding <span
+class="math inline">\(A_e\)</span>：</p>
 <table>
 <thead>
 <tr>
@@ -1155,7 +1169,8 @@ steps</h3>
 </tr>
 </tbody>
 </table>
-<p>移除 <code>A_e</code> 后，PWD、Rg、VAL-CA、CONTACT
+<p>移除 <span class="math inline">\(A_e\)</span>
+后，PWD、Rg、VAL-CA、CONTACT
 都明显变差，说明局部化学模式的扩展原子嵌入不是装饰性模块，而是跨域表征的重要部件。</p>
 <h2 id="从代码角度重新理解-unisim">11. 从代码角度重新理解 UniSim</h2>
 <h3 id="train.py-是三阶段训练分发器">11.1 <code>train.py</code>
