@@ -1,0 +1,823 @@
+<!DOCTYPE html><html lang="zh=CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>FrameDiff 公式推导整理：重排版 | Du Wei</title><meta name="author" content="Du Wei"><meta name="copyright" content="Du Wei"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="重新整理 FrameDiff 的核心公式推导，从 backbone frame 表示、SE(3) 上的旋转和平移扩散，到 score matching 损失与反向采样。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FrameDiff 公式推导整理：重排版">
+<meta property="og:url" content="https://do7math.github.io/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/index.html">
+<meta property="og:site_name" content="Du Wei">
+<meta property="og:description" content="重新整理 FrameDiff 的核心公式推导，从 backbone frame 表示、SE(3) 上的旋转和平移扩散，到 score matching 损失与反向采样。">
+<meta property="og:locale">
+<meta property="og:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg">
+<meta property="article:published_time" content="2026-09-05T14:49:36.000Z">
+<meta property="article:modified_time" content="2026-09-05T14:50:30.356Z">
+<meta property="article:author" content="Du Wei">
+<meta property="article:tag" content="FrameDiff">
+<meta property="article:tag" content="SE(3)">
+<meta property="article:tag" content="diffusion">
+<meta property="article:tag" content="protein">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FrameDiff 公式推导整理：重排版",
+  "url": "https://do7math.github.io/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/",
+  "image": "https://do7math.github.io/img/%E5%A4%B4%E5%83%8F.jpg",
+  "datePublished": "2026-09-05T14:49:36.000Z",
+  "dateModified": "2026-09-05T14:50:30.356Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Du Wei",
+      "url": "https://do7math.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://do7math.github.io/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Failed',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'FrameDiff 公式推导整理：重排版',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">Du Wei</span></a><a class="nav-page-title" href="/"><span class="site-name">FrameDiff 公式推导整理：重排版</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  Back to Home</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">FrameDiff 公式推导整理：重排版</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-09-05T14:49:36.000Z" title="Created 2026-09-05 22:49:36">2026-09-05</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-09-05T14:50:30.356Z" title="Updated 2026-09-05 22:50:30">2026-09-05</time></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="framediff-公式推导整理重排版">FrameDiff
+公式推导整理：重排版</h1>
+<p>这份笔记重新整理 FrameDiff
+的核心公式，重点放在推导链条本身，而不是逐字复刻论文。建议把它理解成四层：</p>
+<ol type="1">
+<li>蛋白 backbone 被表示成一组刚体 frame。</li>
+<li>每个 frame 的旋转和平移分别做扩散。</li>
+<li>为了全局 SE(3) 不变性，平移部分始终去质心。</li>
+<li>网络预测去噪 frame，再由解析公式转成
+score，用于训练和反向采样。</li>
+</ol>
+<span id="more"></span>
+<h2 id="backbone-的-frame-表示">1. Backbone 的 frame 表示</h2>
+<p>第 n 个残基用一个 SE(3) 刚体变换表示：</p>
+<p><span class="math display">\[
+T_n = (R_n, x_n)
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+R_n \in SO(3), \qquad x_n \in \mathbb{R}^3
+\]</span></p>
+<p>对任意局部原子坐标 a，frame 的作用是：</p>
+<p><span class="math display">\[
+T_n(a) = R_n a + x_n
+\]</span></p>
+<p>长度为 N 的 backbone 是 N 个 frame 的集合：</p>
+<p><span class="math display">\[
+T = (T_1, T_2, \ldots, T_N) \in SE(3)^N
+\]</span></p>
+<p>FrameDiff 使用理想化 backbone 局部坐标，以 alpha carbon 为原点：</p>
+<p><span class="math display">\[
+C_\alpha^\ast = (0,0,0)
+\]</span></p>
+<p><span class="math display">\[
+N^\ast = (-0.525,1.363,0),
+\quad
+C^\ast = (1.526,0,0),
+\quad
+O^\ast = (0.627,1.062,0)
+\]</span></p>
+<p>N、C_alpha、C 可以直接由 frame 放置：</p>
+<p><span class="math display">\[
+N_n = R_n N^\ast + x_n
+\]</span></p>
+<p><span class="math display">\[
+C_{\alpha,n} = x_n
+\]</span></p>
+<p><span class="math display">\[
+C_n = R_n C^\ast + x_n
+\]</span></p>
+<p>O 原子还需要一个 psi 扭转角。论文用二维单位向量表示 psi：</p>
+<p><span class="math display">\[
+\psi_n = (\psi_{n,1}, \psi_{n,2}),
+\qquad
+\psi_{n,1}^2 + \psi_{n,2}^2 = 1
+\]</span></p>
+<p>绕局部 x 轴旋转：</p>
+<p><span class="math display">\[
+R_x(\psi_n) =
+\begin{pmatrix}
+1 &amp; 0 &amp; 0 \\
+0 &amp; \psi_{n,1} &amp; -\psi_{n,2} \\
+0 &amp; \psi_{n,2} &amp; \psi_{n,1}
+\end{pmatrix}
+\]</span></p>
+<p>因此：</p>
+<p><span class="math display">\[
+O_n = R_n R_x(\psi_n) O^\ast + x_n
+\]</span></p>
+<p>整体可以记作：</p>
+<p><span class="math display">\[
+[N_n, C_{\alpha,n}, C_n, O_n]
+=
+\operatorname{frame2atom}(T_n,\psi_n)
+\]</span></p>
+<h2 id="从原子坐标构造-frame">2. 从原子坐标构造 frame</h2>
+<p>训练数据给出真实 backbone 原子坐标，需要先从 N、C_alpha、C 构造残基
+frame。</p>
+<p>令：</p>
+<p><span class="math display">\[
+v_1 = C_n - C_{\alpha,n}
+\]</span></p>
+<p><span class="math display">\[
+v_2 = N_n - C_{\alpha,n}
+\]</span></p>
+<p>用 Gram-Schmidt 得到局部坐标轴：</p>
+<p><span class="math display">\[
+e_1 = \frac{v_1}{\|v_1\|}
+\]</span></p>
+<p><span class="math display">\[
+u_2 = v_2 - e_1(e_1^\top v_2)
+\]</span></p>
+<p><span class="math display">\[
+e_2 = \frac{u_2}{\|u_2\|}
+\]</span></p>
+<p><span class="math display">\[
+e_3 = e_1 \times e_2
+\]</span></p>
+<p>于是：</p>
+<p><span class="math display">\[
+R_n = [e_1,e_2,e_3],
+\qquad
+x_n = C_{\alpha,n}
+\]</span></p>
+<p>也就是：</p>
+<p><span class="math display">\[
+T_n = \operatorname{atom2frame}(N_n,C_{\alpha,n},C_n)
+\]</span></p>
+<h2 id="riemannian-score-diffusion-的基础公式">3. Riemannian score
+diffusion 的基础公式</h2>
+<p>在普通欧氏扩散里，数据逐渐变成高斯噪声；FrameDiff 的困难在于数据位于
+SE(3) 流形上。论文先使用 Riemannian score-based diffusion
+的通用形式。</p>
+<p>设数据分布为 p0，参考分布为：</p>
+<p><span class="math display">\[
+p_{\mathrm{inv}}(x) \propto e^{-U(x)}
+\]</span></p>
+<p>前向 SDE 是：</p>
+<p><span class="math display">\[
+dX_t =
+-\frac{1}{2}\nabla U(X_t)\,dt
++ dB_t
+\]</span></p>
+<p>其中 B_t 是流形上的 Brownian motion。</p>
+<p>反向生成过程需要当前边缘分布的 score：</p>
+<p><span class="math display">\[
+\nabla \log p_t(X_t)
+\]</span></p>
+<p>时间反演公式为：</p>
+<p><span class="math display">\[
+d\bar X_t =
+\left(
+\frac{1}{2}\nabla U(\bar X_t)
++ \nabla \log p_{T-t}(\bar X_t)
+\right)dt
++ dB_t
+\]</span></p>
+<p>实际中 score 不可直接得到，因此训练网络 s_theta：</p>
+<p><span class="math display">\[
+s_\theta(t,X_t) \approx \nabla \log p_t(X_t)
+\]</span></p>
+<p>Denoising score matching 目标为：</p>
+<p><span class="math display">\[
+L_{\mathrm{DSM}}
+=
+\mathbb{E}
+\left[
+\lambda_t
+\left\|
+\nabla \log p_{t|0}(X_t|X_0)
+- s_\theta(t,X_t)
+\right\|^2
+\right]
+\]</span></p>
+<p>关键点：训练时不需要真实边缘 score，只需要条件 score：</p>
+<p><span class="math display">\[
+\nabla \log p_{t|0}(X_t|X_0)
+\]</span></p>
+<h2 id="se3-扩散为什么能拆成旋转和平移">4. SE(3)
+扩散为什么能拆成旋转和平移</h2>
+<p>FrameDiff 选择一个可拆分的 SE(3) 度量。对切向量 (a,u) 和
+(a’,u’)：</p>
+<p><span class="math display">\[
+\langle (a,u),(a&#39;,u&#39;) \rangle_{SE(3)}
+=
+\langle a,a&#39; \rangle_{SO(3)}
++
+\langle u,u&#39; \rangle_{\mathbb{R}^3}
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+\langle A,B \rangle_{SO(3)}
+=
+\frac{1}{2}\operatorname{Tr}(AB^\top)
+\]</span></p>
+<p><span class="math display">\[
+\langle u,v \rangle_{\mathbb{R}^3}
+=
+u^\top v
+\]</span></p>
+<p>这个度量使 SE(3) 上的 Brownian motion 分解为：</p>
+<p><span class="math display">\[
+B_{SE(3)}(t)
+=
+\left(B_{SO(3)}(t), B_{\mathbb{R}^3}(t)\right)
+\]</span></p>
+<p>因此前向扩散可以拆成两部分：</p>
+<p><span class="math display">\[
+T_t = (R_t, X_t)
+\]</span></p>
+<p>旋转部分是 SO(3) 上的 Brownian motion：</p>
+<p><span class="math display">\[
+R_t \in SO(3)
+\]</span></p>
+<p>平移部分是欧氏空间中的 OU / VP-SDE：</p>
+<p><span class="math display">\[
+X_t \in \mathbb{R}^3
+\]</span></p>
+<p>条件 score 也对应拆分：</p>
+<p><span class="math display">\[
+\nabla_{T_t}\log p_{t|0}(T_t|T_0)
+=
+\left(
+\nabla_{R_t}\log p_{t|0}(R_t|R_0),
+\nabla_{X_t}\log p_{t|0}(X_t|X_0)
+\right)
+\]</span></p>
+<h2 id="平移扩散r3-部分">5. 平移扩散：R3 部分</h2>
+<p>正文中的简化平移前向过程是 OU 过程：</p>
+<p><span class="math display">\[
+dX_t =
+-\frac{1}{2}X_t\,dt
++ dB_t
+\]</span></p>
+<p>它的条件分布是：</p>
+<p><span class="math display">\[
+p_{t|0}(x_t|x_0)
+=
+\mathcal{N}
+\left(
+x_t;
+e^{-t/2}x_0,
+(1-e^{-t})I
+\right)
+\]</span></p>
+<p>因此条件 score 是：</p>
+<p><span class="math display">\[
+\nabla_{x_t}\log p_{t|0}(x_t|x_0)
+=
+\frac{e^{-t/2}x_0-x_t}{1-e^{-t}}
+\]</span></p>
+<p>实现中使用 beta schedule：</p>
+<p><span class="math display">\[
+\beta(t) =
+\beta_{\min} + t(\beta_{\max}-\beta_{\min})
+\]</span></p>
+<p>累计噪声为：</p>
+<p><span class="math display">\[
+G_x(t)
+=
+\int_0^t \beta(s)\,ds
+=
+t\beta_{\min}
++ \frac{1}{2}t^2(\beta_{\max}-\beta_{\min})
+\]</span></p>
+<p>实现版条件分布变成：</p>
+<p><span class="math display">\[
+p_{t|0}(x_t|x_0)
+=
+\mathcal{N}
+\left(
+x_t;
+e^{-G_x(t)/2}x_0,
+(1-e^{-G_x(t)})I
+\right)
+\]</span></p>
+<p>对应 score：</p>
+<p><span class="math display">\[
+s_x^\ast(t,x_t,x_0)
+=
+\frac{e^{-G_x(t)/2}x_0-x_t}{1-e^{-G_x(t)}}
+\]</span></p>
+<p>如果网络预测干净坐标 x0_hat，则使用：</p>
+<p><span class="math display">\[
+s_\theta^x(t,T_t)_n
+=
+\frac{e^{-G_x(t)/2}\hat x_{0,n}-x_{t,n}}
+{1-e^{-G_x(t)}}
+\]</span></p>
+<h2 id="旋转扩散so3-与-igso3">6. 旋转扩散：SO(3) 与 IGSO(3)</h2>
+<p>旋转不能直接当作欧氏向量加高斯噪声，因为：</p>
+<p><span class="math display">\[
+R_t \in SO(3)
+\]</span></p>
+<p>FrameDiff 使用 SO(3) 上的 Brownian motion。其条件密度是 IGSO(3)：</p>
+<p><span class="math display">\[
+p_{t|0}(R_t|R_0)
+=
+\operatorname{IGSO}_3(R_t;R_0,t)
+\]</span></p>
+<p>它只依赖相对旋转角：</p>
+<p><span class="math display">\[
+\omega_t =
+\omega(R_0^\top R_t)
+\]</span></p>
+<p>因此：</p>
+<p><span class="math display">\[
+\operatorname{IGSO}_3(R_t;R_0,t)
+=
+f(\omega_t,t)
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+f(\omega,t)
+=
+\sum_{\ell=0}^{\infty}
+(2\ell+1)
+e^{-\ell(\ell+1)t/2}
+\frac{\sin((\ell+1/2)\omega)}
+{\sin(\omega/2)}
+\]</span></p>
+<p>旋转条件 score 是：</p>
+<p><span class="math display">\[
+\nabla_{R_t}\log p_{t|0}(R_t|R_0)
+=
+R_t
+\frac{\log(R_0^\top R_t)}{\omega_t}
+\frac{\partial_\omega f(\omega_t,t)}{f(\omega_t,t)}
+\]</span></p>
+<p>其中 log 是 SO(3) 矩阵对数。</p>
+<p>实现中用 sigma schedule 控制旋转噪声：</p>
+<p><span class="math display">\[
+\sigma_r(t)
+=
+\log
+\left(
+t e^{\sigma_{\max}}
++ (1-t)e^{\sigma_{\min}}
+\right)
+\]</span></p>
+<p>于是实现版旋转核写成：</p>
+<p><span class="math display">\[
+p_{t|0}(R_t|R_0)
+=
+\operatorname{IGSO}_3
+\left(
+R_t;R_0,\sigma_r^2(t)
+\right)
+\]</span></p>
+<h2 id="为什么必须中心化">7. 为什么必须中心化</h2>
+<p>蛋白整体平移不应改变分布，但在整个 R^(3N)
+空间上不存在有限的平移不变概率分布。因此 FrameDiff
+不在完整平移空间中建模，而是在去质心子空间中建模：</p>
+<p><span class="math display">\[
+\sum_{n=1}^{N} x_n = 0
+\]</span></p>
+<p>定义去质心投影：</p>
+<p><span class="math display">\[
+P =
+I_N - \frac{1}{N}\mathbf{1}\mathbf{1}^\top
+\]</span></p>
+<p>三维坐标上实际使用：</p>
+<p><span class="math display">\[
+P_3 = P \otimes I_3
+\]</span></p>
+<p>中心化后的前向扩散：</p>
+<p><span class="math display">\[
+dT_t
+=
+\left(
+0,
+-\frac{1}{2}P_3X_t
+\right)dt
++
+\left(
+dB_{SO(3)^N}(t),
+P_3dB_{\mathbb{R}^{3N}}(t)
+\right)
+\]</span></p>
+<p>直观理解：每一步加噪后，都把所有 C_alpha 坐标的质心移回原点。</p>
+<p>这样模型最终学习的是整体旋转和平移不敏感的 backbone 分布。</p>
+<h2 id="framepred从去噪-frame-到-score">8. FramePred：从去噪 frame 到
+score</h2>
+<p>网络输入带噪 frame 和时间：</p>
+<p><span class="math display">\[
+(T_t,t)
+\]</span></p>
+<p>输出预测的干净 frame 和 psi：</p>
+<p><span class="math display">\[
+(\hat T_0,\hat\psi)
+=
+\operatorname{FramePred}(T_t,t;\theta)
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+\hat T_0 = (\hat R_0,\hat X_0)
+\]</span></p>
+<p>FrameDiff 的 score 参数化不是让网络直接吐出 score，而是：</p>
+<p><span class="math display">\[
+\hat T_0
+\quad \Longrightarrow \quad
+\nabla \log p_{t|0}(T_t|\hat T_0)
+\]</span></p>
+<p>也就是把网络预测的干净结构代入解析条件 score。</p>
+<p>平移 score：</p>
+<p><span class="math display">\[
+s_{\theta,n}^x
+=
+\frac{e^{-G_x(t)/2}\hat x_{0,n}-x_{t,n}}
+{1-e^{-G_x(t)}}
+\]</span></p>
+<p>旋转 score：</p>
+<p><span class="math display">\[
+s_{\theta,n}^r
+=
+R_{t,n}
+\frac{\log(\hat R_{0,n}^\top R_{t,n})}
+{\omega(\hat R_{0,n}^\top R_{t,n})}
+\frac{\partial_\omega f(\omega,t)}
+{f(\omega,t)}
+\]</span></p>
+<p>其中：</p>
+<p><span class="math display">\[
+\omega =
+\omega(\hat R_{0,n}^\top R_{t,n})
+\]</span></p>
+<h2 id="训练损失">9. 训练损失</h2>
+<p>总的 score matching 损失分为旋转和平移：</p>
+<p><span class="math display">\[
+L_{\mathrm{DSM}}
+=
+L_{\mathrm{DSM}}^r
++ L_{\mathrm{DSM}}^x
+\]</span></p>
+<p>旋转 DSM：</p>
+<p><span class="math display">\[
+L_{\mathrm{DSM}}^r
+=
+\mathbb{E}
+\left[
+\lambda_t^r
+\left\|
+\nabla_{R_t}\log p_{t|0}(R_t|R_0)
+-s_\theta^r(t,T_t)
+\right\|^2
+\right]
+\]</span></p>
+<p>平移 DSM 在合适权重下可化简为 x0 预测误差：</p>
+<p><span class="math display">\[
+L_{\mathrm{DSM}}^x
+=
+\frac{1}{N}
+\sum_{n=1}^{N}
+\|x_{0,n}-\hat x_{0,n}\|^2
+\]</span></p>
+<p>仅靠 DSM 会生成大体拓扑合理但局部几何较差的结构，因此论文加入
+auxiliary loss。</p>
+<p>令：</p>
+<p><span class="math display">\[
+\Omega = \{N, C_\alpha, C, O\}
+\]</span></p>
+<p>backbone 原子坐标损失：</p>
+<p><span class="math display">\[
+L_{\mathrm{bb}}
+=
+\frac{1}{4N}
+\sum_{n=1}^{N}
+\sum_{a\in\Omega}
+\|a_{0,n}-\hat a_{0,n}\|^2
+\]</span></p>
+<p>局部 pairwise distance 损失：</p>
+<p><span class="math display">\[
+d_{ab}^{nm}
+=
+\|a_{0,n}-b_{0,m}\|
+\]</span></p>
+<p><span class="math display">\[
+\hat d_{ab}^{nm}
+=
+\|\hat a_{0,n}-\hat b_{0,m}\|
+\]</span></p>
+<p><span class="math display">\[
+L_{2D}
+=
+\frac{1}{Z}
+\sum_{n,m=1}^{N}
+\sum_{a,b\in\Omega}
+\mathbf{1}\{d_{ab}^{nm}&lt;0.6\}
+\|d_{ab}^{nm}-\hat d_{ab}^{nm}\|^2
+\]</span></p>
+<p>这里 0.6 的单位是 nm，也就是 6 Angstrom。</p>
+<p>最终损失：</p>
+<p><span class="math display">\[
+L
+=
+L_{\mathrm{DSM}}
++
+w\mathbf{1}\{t&lt;T_F/4\}
+\left(
+L_{\mathrm{bb}}+L_{2D}
+\right)
+\]</span></p>
+<h2 id="反向采样">10. 反向采样</h2>
+<p>从参考分布开始：</p>
+<p><span class="math display">\[
+T_1 \sim p_{\mathrm{inv}}^N
+\]</span></p>
+<p>也就是：</p>
+<p><span class="math display">\[
+R_1 \sim U(SO(3)),
+\qquad
+X_1 \sim \mathcal{N}(0,I)
+\]</span></p>
+<p>并对 X1 去质心。</p>
+<p>设步长为：</p>
+<p><span class="math display">\[
+\gamma =
+\frac{1-\epsilon}{N_{\mathrm{steps}}}
+\]</span></p>
+<p>每一步先由网络预测：</p>
+<p><span class="math display">\[
+(\hat T_0,\hat\psi)
+=
+\operatorname{FramePred}(T_t,t;\theta)
+\]</span></p>
+<p>再计算：</p>
+<p><span class="math display">\[
+(s_{\theta,n}^r,s_{\theta,n}^x)
+=
+\nabla_{T_{t,n}}
+\log p_{t|0}(T_{t,n}|\hat T_{0,n})
+\]</span></p>
+<p>平移更新：</p>
+<p><span class="math display">\[
+Z_n^x \sim \mathcal{N}(0,I_3)
+\]</span></p>
+<p><span class="math display">\[
+W_n^x
+=
+P_3
+\left(
+\gamma
+\left(
+\frac{1}{2}X_{t,n}
++s_{\theta,n}^x
+\right)
++\zeta\sqrt{\gamma}Z_n^x
+\right)
+\]</span></p>
+<p>旋转更新：</p>
+<p><span class="math display">\[
+Z_n^r \sim T_{R_{t,n}}\mathcal{N}(0,I)
+\]</span></p>
+<p><span class="math display">\[
+W_n^r
+=
+\gamma s_{\theta,n}^r
++\zeta\sqrt{\gamma}Z_n^r
+\]</span></p>
+<p>用指数映射回到 SE(3)：</p>
+<p><span class="math display">\[
+T_{t-\gamma,n}
+=
+\exp_{T_{t,n}}
+\left(
+W_n^r,W_n^x
+\right)
+\]</span></p>
+<p>其中 zeta 是采样噪声缩放系数：</p>
+<p><span class="math display">\[
+0 \leq \zeta \leq 1
+\]</span></p>
+<p>zeta 越小，采样越接近确定性反推；通常 designability
+更好，但多样性可能下降。</p>
+<h2 id="一句话总公式">11. 一句话总公式</h2>
+<p>FrameDiff 的整体推导可以浓缩成：</p>
+<p><span class="math display">\[
+\operatorname{atoms}
+\to
+T_0=(R_0,X_0)
+\to
+T_t=(R_t,X_t)
+\to
+\hat T_0=\operatorname{FramePred}(T_t,t)
+\to
+s_\theta=\nabla\log p_{t|0}(T_t|\hat T_0)
+\to
+\operatorname{reverseSDE}
+\to
+\operatorname{newBackbone}
+\]</span></p>
+<p>最重要的结论：</p>
+<ol type="1">
+<li>SE(3) 通过合适度量拆成 SO(3) 和 R3 两个扩散。</li>
+<li>平移部分是 OU / VP-SDE，score 有高斯解析式。</li>
+<li>旋转部分是 SO(3) Brownian motion，条件核是 IGSO(3)。</li>
+<li>为了整体 SE(3) 不变性，所有平移坐标都要保持去质心。</li>
+<li>网络预测的是干净 frame，真正用于扩散反推的是由条件核解析得到的
+score。</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="https://do7math.github.io">Du Wei</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="https://do7math.github.io/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/">https://do7math.github.io/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles on this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless otherwise stated.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/diffusion/">diffusion</a><a class="post-meta__tags" href="/tags/FrameDiff/">FrameDiff</a><a class="post-meta__tags" href="/tags/protein/">protein</a><a class="post-meta__tags" href="/tags/SE-3/">SE(3)</a></div><div class="post-share"><div class="social-share" data-image="/img/%E5%A4%B4%E5%83%8F.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/" title="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">Next</div><div class="info-item-2">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</div></div><div class="info-2"><div class="info-item-1">0. 资料定位 这份资料面向已经了解分子动力学、深度学习分子建模或 generative model 基础概念，但还没有系统读过 UniSim 的读者。目标不是复述摘要，而是把论文中的问题设定、方法结构、数学目标、实验结果和官方代码仓库连成一条可学习、可复现、可批判阅读的主线。 资料来源：  本地论文 PDF：26 UniSim Time-Coarsened Dynamics of Biomolecules.pdf 论文标题：UniSim: A Unified Simulator for Time-Coarsened Dynamics of Biomolecules 作者：Ziyang Yu, Wenbing Huang, Yang Liu 会议：ICML 2025, Proceedings of the 42nd International Conference on Machine Learning 代码仓库：https://github.com/yaledeus/UniSim 本次读取的仓库提交：58b5740a076e1add1282355cc5dc7406c936afd...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/" title="FrameDiff &#x2F; SE(3) Diffusion 模型结构中文版学习报告"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-28</div><div class="info-item-2">FrameDiff &#x2F; SE(3) Diffusion 模型结构中文版学习报告</div></div><div class="info-2"><div class="info-item-1">本文整理自 Immortals-33/Framediff 的 README 与关键源码，并结合论文《SE(3) diffusion model with application to protein backbone generation》。目标是帮助你从“数据如何进入模型”一路理解到“每个网络模块如何更新残基 frame、如何训练、如何采样”。 参考来源：  项目 README: https://github.com/Immortals-33/Framediff/blob/master/README.md 论文页面: https://proceedings.mlr.press/v202/yim23a.html 论文 HTML: https://ar5iv.labs.arxiv.org/html/2302.02277 model/score_network.py: https://github.com/Immortals-33/Framediff/blob/master/model/score_network.py model/ipa_pytorch.py: https://gi...</div></div></div></a><a class="pagination-related" href="/2026/01/23/DDPM/" title="DDPM"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-01-23</div><div class="info-item-2">DDPM</div></div><div class="info-2"><div class="info-item-1">KL divergence（KL 散度）  KL散度是描述两个概率分布差异程度的度量。 对于两种概率分布 \(P,Q\)，对应概率密度函数\(p(x), q(x)\)。  定义 连续情形： \[ \mathrm{KL}(P\|Q)=\int p(x)\log\frac{p(x)}{q(x)}\,dx \] 离散情形： \[ \mathrm{KL}(P\|Q)=\sum_x p(x)\log\frac{p(x)}{q(x)}. \] 性质：具有非负性（\(\mathrm{KL}(P\|Q)\ge 0\)），且一般不对称（\(\mathrm{KL}(P\|Q)\neq \mathrm{KL}(Q\|P)\)）。 与熵 / 交叉熵的关系（离散写法） \[ \begin{aligned} \mathrm{KL}(P\|Q) &amp;=\sum_x p(x)\log\frac{p(x)}{q(x)} \\ &amp;=\sum_x p(x)\log p(x)-\sum_x p(x)\log q(x) \\ &amp;=-H(p)+H(p,q), \end{aligned} \] 其中 \...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/%E5%A4%B4%E5%83%8F.jpg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">Du Wei</div><div class="author-info-description">面朝大海，春暖花开</div><div class="site-data"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">6</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">9</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">0</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#framediff-%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86%E9%87%8D%E6%8E%92%E7%89%88"><span class="toc-number">1.</span> <span class="toc-text">FrameDiff
+公式推导整理：重排版</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#backbone-%E7%9A%84-frame-%E8%A1%A8%E7%A4%BA"><span class="toc-number">1.1.</span> <span class="toc-text">1. Backbone 的 frame 表示</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8E%E5%8E%9F%E5%AD%90%E5%9D%90%E6%A0%87%E6%9E%84%E9%80%A0-frame"><span class="toc-number">1.2.</span> <span class="toc-text">2. 从原子坐标构造 frame</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#riemannian-score-diffusion-%E7%9A%84%E5%9F%BA%E7%A1%80%E5%85%AC%E5%BC%8F"><span class="toc-number">1.3.</span> <span class="toc-text">3. Riemannian score
+diffusion 的基础公式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#se3-%E6%89%A9%E6%95%A3%E4%B8%BA%E4%BB%80%E4%B9%88%E8%83%BD%E6%8B%86%E6%88%90%E6%97%8B%E8%BD%AC%E5%92%8C%E5%B9%B3%E7%A7%BB"><span class="toc-number">1.4.</span> <span class="toc-text">4. SE(3)
+扩散为什么能拆成旋转和平移</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B9%B3%E7%A7%BB%E6%89%A9%E6%95%A3r3-%E9%83%A8%E5%88%86"><span class="toc-number">1.5.</span> <span class="toc-text">5. 平移扩散：R3 部分</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%97%8B%E8%BD%AC%E6%89%A9%E6%95%A3so3-%E4%B8%8E-igso3"><span class="toc-number">1.6.</span> <span class="toc-text">6. 旋转扩散：SO(3) 与 IGSO(3)</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E5%BF%85%E9%A1%BB%E4%B8%AD%E5%BF%83%E5%8C%96"><span class="toc-number">1.7.</span> <span class="toc-text">7. 为什么必须中心化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#framepred%E4%BB%8E%E5%8E%BB%E5%99%AA-frame-%E5%88%B0-score"><span class="toc-number">1.8.</span> <span class="toc-text">8. FramePred：从去噪 frame 到
+score</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%AE%AD%E7%BB%83%E6%8D%9F%E5%A4%B1"><span class="toc-number">1.9.</span> <span class="toc-text">9. 训练损失</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%8D%E5%90%91%E9%87%87%E6%A0%B7"><span class="toc-number">1.10.</span> <span class="toc-text">10. 反向采样</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E6%80%BB%E5%85%AC%E5%BC%8F"><span class="toc-number">1.11.</span> <span class="toc-text">11. 一句话总公式</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Posts</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/09/05/FrameDiff%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC%E6%95%B4%E7%90%86/" title="FrameDiff 公式推导整理：重排版">FrameDiff 公式推导整理：重排版</a><time datetime="2026-09-05T14:49:36.000Z" title="Created 2026-09-05 22:49:36">2026-09-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/09/02/UniSim%E4%B8%AD%E6%96%87%E5%AD%A6%E4%B9%A0%E8%B5%84%E6%96%99/" title="UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器">UniSim 中文学习资料：统一的生物分子时间粗粒化动力学模拟器</a><time datetime="2026-09-01T16:00:00.000Z" title="Created 2026-09-02 00:00:00">2026-09-02</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/28/FrameDiff%E6%A8%A1%E5%9E%8B%E7%BB%93%E6%9E%84%E5%AD%A6%E4%B9%A0%E6%8A%A5%E5%91%8A/" title="FrameDiff / SE(3) Diffusion 模型结构中文版学习报告">FrameDiff / SE(3) Diffusion 模型结构中文版学习报告</a><time datetime="2026-08-28T00:54:25.000Z" title="Created 2026-08-28 08:54:25">2026-08-28</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/03/31/hello-world/" title="Hello World">Hello World</a><time datetime="2026-03-30T16:20:12.867Z" title="Created 2026-03-31 00:20:12">2026-03-31</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/01/23/DDPM/" title="DDPM">DDPM</a><time datetime="2026-01-23T08:39:20.000Z" title="Created 2026-01-23 16:39:20">2026-01-23</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By Du Wei</span><span class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Reading Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light and Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle Between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Settings"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back to Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><div class="js-pjax"><script>(() => {
+  const loadMathjax = () => {
+    if (!window.MathJax) {
+      window.MathJax = {
+        loader: {
+          load: [
+            // Four font extension packages (optional)
+            //- '[tex]/bbm',
+            //- '[tex]/bboldx',
+            //- '[tex]/dsfont',
+            '[tex]/mhchem'
+          ],
+          paths: {
+            'mathjax-newcm': '[mathjax]/../@mathjax/mathjax-newcm-font',
+
+            //- // Four font extension packages (optional)
+            //- 'mathjax-bbm-extension': '[mathjax]/../@mathjax/mathjax-bbm-font-extension',
+            //- 'mathjax-bboldx-extension': '[mathjax]/../@mathjax/mathjax-bboldx-font-extension',
+            //- 'mathjax-dsfont-extension': '[mathjax]/../@mathjax/mathjax-dsfont-font-extension',
+            'mathjax-mhchem-extension': '[mathjax]/../@mathjax/mathjax-mhchem-font-extension'
+          }
+        },
+        output: {
+          font: 'mathjax-newcm',
+        },
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          tags: 'none',
+          packages: {
+            '[+]': [
+              'mhchem'
+            ]
+          }
+        },
+        chtml: {
+          scale: 1.1
+        },
+        options: {
+          enableMenu: true,
+          menuOptions: {
+            settings: {
+              enrich: false  // Turn off Braille and voice narration text automatic generation
+            }
+          },
+          renderActions: {
+            findScript: [10, doc => {
+              for (const node of document.querySelectorAll('script[type^="math/tex"]')) {
+                const display = !!node.type.match(/; *mode=display/)
+                const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display)
+                const text = document.createTextNode('')
+                node.parentNode.replaceChild(text, node)
+                math.start = {node: text, delim: '', n: 0}
+                math.end = {node: text, delim: '', n: 0}
+                doc.math.push(math)
+              }
+            }, '']
+          }
+        }
+      }
+
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.min.js'
+      script.id = 'MathJax-script'
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      MathJax.startup.document.state(0)
+      MathJax.texReset()
+      MathJax.typesetPromise()
+    }
+  }
+
+  btf.addGlobalFn('encrypt', loadMathjax, 'mathjax')
+  window.pjax ? loadMathjax() : window.addEventListener('load', loadMathjax)
+})()</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
